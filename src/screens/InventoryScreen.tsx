@@ -8,26 +8,14 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-  Timestamp,
-} from "firebase/firestore";
-import { auth, db } from "../firebase/firebaseConfig";
+import { auth } from "../firebase/firebaseConfig";
 import { createWasteLog } from "../services/wasteService";
 import { scheduleExpiryNotifications } from "../services/notificationService";
-
-type InventoryItem = {
-  id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  expiryDate: Date | null;
-};
+import {
+  getUserInventory,
+  updateItemStatus,
+  type InventoryItem,
+} from "../services/inventoryService";
 
 function getDaysRemaining(expiryDate: Date | null): number | null {
   if (!expiryDate) return null;
@@ -56,6 +44,7 @@ function getExpiryLabel(days: number | null): string {
 export default function InventoryScreen() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchItems = async () => {
     const currentUser = auth.currentUser;
@@ -66,25 +55,7 @@ export default function InventoryScreen() {
     }
 
     try {
-      const q = query(
-        collection(db, "inventoryItems"),
-        where("userId", "==", currentUser.uid)
-      );
-      const snapshot = await getDocs(q);
-
-      const fetched: InventoryItem[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          name: data.name ?? "",
-          quantity: data.quantity ?? 0,
-          unit: data.unit ?? "",
-          expiryDate: data.expiryDate instanceof Timestamp
-            ? data.expiryDate.toDate()
-            : data.expiryDate ?? null,
-        };
-      });
-
+      const fetched = await getUserInventory(currentUser.uid);
       setItems(fetched);
       scheduleExpiryNotifications(fetched);
     } catch (error: any) {
@@ -99,20 +70,30 @@ export default function InventoryScreen() {
   }, []);
 
   const handleStatusUpdate = async (item: InventoryItem, status: "used" | "wasted") => {
+    if (item.status !== "active") {
+      Alert.alert("Already updated", `This item has already been marked as ${item.status}.`);
+      return;
+    }
+
     const currentUser = auth.currentUser;
     if (!currentUser) {
       Alert.alert("Error", "No logged-in user found.");
       return;
     }
 
+    setUpdatingId(item.id);
     try {
       await createWasteLog(item, currentUser.uid, status);
-      await updateDoc(doc(db, "inventoryItems", item.id), { status });
-      Alert.alert("Updated", `Item marked as ${status}.`, [
-        { text: "OK", onPress: () => fetchItems() },
-      ]);
+      await updateItemStatus(item.id, status);
+      // Update local state directly — no full re-fetch
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, status } : i))
+      );
+      Alert.alert("Updated", `Item marked as ${status}.`);
     } catch (error: any) {
       Alert.alert("Error", error.message);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -146,14 +127,24 @@ export default function InventoryScreen() {
               <Text style={[styles.detail, { color }]}>{label}</Text>
               <View style={styles.actions}>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.usedButton]}
+                  style={[
+                    styles.actionButton,
+                    styles.usedButton,
+                    (item.status !== "active" || updatingId === item.id) && styles.disabledButton,
+                  ]}
                   onPress={() => handleStatusUpdate(item, "used")}
+                  disabled={item.status !== "active" || updatingId === item.id}
                 >
                   <Text style={styles.actionText}>Used</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.wasteButton]}
+                  style={[
+                    styles.actionButton,
+                    styles.wasteButton,
+                    (item.status !== "active" || updatingId === item.id) && styles.disabledButton,
+                  ]}
                   onPress={() => handleStatusUpdate(item, "wasted")}
+                  disabled={item.status !== "active" || updatingId === item.id}
                 >
                   <Text style={styles.actionText}>Waste</Text>
                 </TouchableOpacity>
@@ -220,6 +211,9 @@ const styles = StyleSheet.create({
   },
   wasteButton: {
     backgroundColor: "#e74c3c",
+  },
+  disabledButton: {
+    opacity: 0.4,
   },
   actionText: {
     color: "#fff",

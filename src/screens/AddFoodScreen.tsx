@@ -8,8 +8,8 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../firebase/firebaseConfig";
+import { auth } from "../firebase/firebaseConfig";
+import { addInventoryItem } from "../services/inventoryService";
 
 export default function AddFoodScreen({ navigation }: any) {
   const [name, setName] = useState("");
@@ -59,16 +59,16 @@ export default function AddFoodScreen({ navigation }: any) {
     }
 
     try {
-      await addDoc(collection(db, "inventoryItems"), {
-        userId: currentUser.uid,
-        name: name.trim(),
-        quantity: parsedQty,
-        unit: unit.trim(),
-        expiryDate: parsedExpiry ?? null,
-        price: parsedPrice,
-        createdAt: serverTimestamp(),
-        status: "active",
-      });
+      await addInventoryItem(
+        {
+          name: name.trim(),
+          quantity: parsedQty,
+          unit: unit.trim(),
+          expiryDate: parsedExpiry ?? null,
+          price: parsedPrice,
+        },
+        currentUser.uid
+      );
 
       Alert.alert("Success", "Food item added to inventory.", [
         { text: "OK", onPress: () => navigation.goBack() },
