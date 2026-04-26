@@ -4,24 +4,55 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
   const userData = route?.params?.userData ?? null;
 
   const email: string = userData?.email ?? "User";
-  const role: "home" | "business" = userData?.role === "business" ? "business" : "home";
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business"
+      ? "business"
+      : userData?.role === "coordinator"
+      ? "coordinator"
+      : "home";
 
   const dashboardTitle =
-    role === "business" ? "Business Dashboard" : "Home User Dashboard";
+    role === "business"
+      ? "Business Dashboard"
+      : role === "coordinator"
+      ? "NPO Coordinator Dashboard"
+      : "Home User Dashboard";
 
-  const commonButtons = [
+  const homeButtons = [
     { label: "Add Food", screen: "AddFood" },
     { label: "View Inventory", screen: "Inventory" },
     { label: "View Analytics", screen: "Analytics" },
     { label: "Smart Suggestions", screen: "Suggestions" },
+    { label: "FreshBot", screen: "FreshBot" },
+    { label: "Profile", screen: "Profile" },
+    { label: "Camera Test", screen: "CameraTest" },
+    { label: "Report Issue", screen: "Report" },
   ];
 
-  const businessOnlyButtons = [
-    { label: "Donate Food", screen: null }, // placeholder for future feature
+  const businessButtons = [
+    { label: "Donate Food", screen: "CreateDonation" },
+    { label: "View Donations", screen: "DonationsList" },
+    { label: "View Analytics", screen: "Analytics" },
+    { label: "FreshBot", screen: "FreshBot" },
+    { label: "Profile", screen: "Profile" },
+    { label: "Camera Test", screen: "CameraTest" },
+    { label: "Report Issue", screen: "Report" },
+  ];
+
+  const coordinatorButtons = [
+    { label: "View Donations", screen: "DonationsList" },
+    { label: "View Analytics", screen: "Analytics" },
+    { label: "Profile", screen: "Profile" },
+    { label: "Camera Test", screen: "CameraTest" },
+    { label: "Report Issue", screen: "Report" },
   ];
 
   const buttons =
-    role === "business" ? [...commonButtons, ...businessOnlyButtons] : commonButtons;
+    role === "business"
+      ? businessButtons
+      : role === "coordinator"
+      ? coordinatorButtons
+      : homeButtons;
 
   return (
     <View style={styles.container}>

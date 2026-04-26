@@ -12,7 +12,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
-type Role = "home" | "business";
+type Role = "home" | "business" | "coordinator";
 
 export default function RegisterScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -108,6 +108,14 @@ export default function RegisterScreen({ navigation }: any) {
         >
           <Text style={[styles.roleText, role === "business" && styles.roleTextActive]}>
             Business
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.roleButton, role === "coordinator" && styles.roleButtonActive]}
+          onPress={() => setRole("coordinator")}
+        >
+          <Text style={[styles.roleText, role === "coordinator" && styles.roleTextActive]}>
+            NPO Coordinator
           </Text>
         </TouchableOpacity>
       </View>
