@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 type Role = "home" | "business";
 
@@ -43,7 +43,7 @@ export default function RegisterScreen({ navigation }: any) {
         email: user.email,
         role,
         verificationStatus: "active",
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
         fullName: "",
         householdSize: 0,
         dietaryPreferences: [],
@@ -52,7 +52,20 @@ export default function RegisterScreen({ navigation }: any) {
         analyticsConsent: false,
       });
 
-      navigation.navigate("HomeDashboard");
+      const userData = {
+        uid: user.uid,
+        email: user.email,
+        role,
+        verificationStatus: "active",
+        fullName: "",
+        householdSize: 0,
+        dietaryPreferences: [],
+        kitchenEquipment: [],
+        locationConsent: false,
+        analyticsConsent: false,
+      };
+
+      navigation.navigate("HomeDashboard", { userData });
     } catch (error: any) {
       Alert.alert("Registration Error", error.message);
     }

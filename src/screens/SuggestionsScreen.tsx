@@ -7,14 +7,8 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
-import { auth, db } from "../firebase/firebaseConfig";
+import { auth } from "../firebase/firebaseConfig";
+import { getUserInventory } from "../services/inventoryService";
 
 type SuggestionItem = {
   id: string;
@@ -57,33 +51,15 @@ export default function SuggestionsScreen() {
       }
 
       try {
-        const q = query(
-          collection(db, "inventoryItems"),
-          where("userId", "==", currentUser.uid),
-          where("status", "==", "active")
-        );
-        const snapshot = await getDocs(q);
+        const allItems = await getUserInventory(currentUser.uid);
 
-        const items: SuggestionItem[] = [];
-
-        snapshot.docs.forEach((docSnap) => {
-          const data = docSnap.data();
-          let expiry: Date | null = null;
-
-          if (data.expiryDate instanceof Timestamp) {
-            expiry = data.expiryDate.toDate();
-          } else if (data.expiryDate instanceof Date) {
-            expiry = data.expiryDate;
-          }
-
-          if (expiry) {
-            items.push({
-              id: docSnap.id,
-              name: data.name ?? "",
-              expiryDate: expiry,
-            });
-          }
-        });
+        const items: SuggestionItem[] = allItems
+          .filter((item) => item.status === "active" && item.expiryDate !== null)
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            expiryDate: item.expiryDate as Date,
+          }));
 
         // Sort earliest expiry first, take top 5
         items.sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());

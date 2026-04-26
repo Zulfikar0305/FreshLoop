@@ -62,7 +62,11 @@ export async function scheduleExpiryNotifications(
           title: "Food Expired",
           body: `${item.name} has expired.`,
         },
-        trigger: null,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 1,
+          repeats: false,
+        },
       });
       ids.add(item.id);
     } else if (days <= 2) {
@@ -71,7 +75,11 @@ export async function scheduleExpiryNotifications(
           title: "Expiring Soon",
           body: `Your item ${item.name} is expiring soon.`,
         },
-        trigger: null,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 1,
+          repeats: false,
+        },
       });
       ids.add(item.id);
     }

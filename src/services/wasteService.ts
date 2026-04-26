@@ -1,18 +1,11 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { type InventoryItem } from "./inventoryService";
 
 type WasteStatus = "used" | "wasted";
 
-type InventoryItemInput = {
-  name: string;
-  quantity: number;
-  unit: string;
-  expiryDate: Date | null;
-  price?: number;
-};
-
 export async function createWasteLog(
-  item: InventoryItemInput,
+  item: InventoryItem,
   userId: string,
   status: WasteStatus
 ): Promise<void> {

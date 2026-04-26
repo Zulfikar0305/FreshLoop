@@ -47,6 +47,7 @@ export default function InventoryScreen() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchItems = async () => {
+    setLoading(true);
     const currentUser = auth.currentUser;
     if (!currentUser) {
       Alert.alert("Error", "No logged-in user found.");
