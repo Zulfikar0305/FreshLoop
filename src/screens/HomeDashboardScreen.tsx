@@ -41,7 +41,6 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
   const coordinatorButtons = [
     { label: "View Donations", screen: "DonationsList" },
-    { label: "View Analytics", screen: "Analytics" },
     { label: "Profile", screen: "Profile" },
     { label: "Camera Test", screen: "CameraTest" },
     { label: "Report Issue", screen: "Report" },
@@ -64,11 +63,10 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         {buttons.map((btn) => (
           <TouchableOpacity
             key={btn.label}
-            style={[styles.button, btn.screen === null && styles.placeholderButton]}
-            onPress={() => btn.screen && navigation.navigate(btn.screen)}
-            disabled={btn.screen === null}
+            style={styles.button}
+            onPress={() => navigation.navigate(btn.screen)}
           >
-            <Text style={[styles.buttonText, btn.screen === null && styles.placeholderText]}>
+            <Text style={styles.buttonText}>
               {btn.label}
             </Text>
           </TouchableOpacity>
@@ -111,11 +109,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  placeholderButton: {
-    backgroundColor: "#ccc",
-  },
-  placeholderText: {
-    color: "#888",
   },
 });

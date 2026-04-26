@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
-  FlatList,
   Alert,
   ActivityIndicator,
   TouchableOpacity,
@@ -121,11 +120,14 @@ export default function DonationsListScreen() {
         if (currentUser) {
           const claimedQ = query(
             collection(db, "donations"),
-            where("status", "==", "claimed"),
             where("claimedBy", "==", currentUser.uid)
           );
           const claimedSnap = await getDocs(claimedQ);
-          setClaimedDonations(claimedSnap.docs.map(mapDoc));
+          setClaimedDonations(
+            claimedSnap.docs
+              .filter((d) => d.data().status === "claimed")
+              .map(mapDoc)
+          );
         }
       } catch (error: any) {
         Alert.alert("Error", error.message);
