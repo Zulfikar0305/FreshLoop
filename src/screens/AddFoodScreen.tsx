@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  Button,
+  TouchableOpacity,
   Alert,
   StyleSheet,
   ScrollView,
@@ -82,81 +82,129 @@ export default function AddFoodScreen({ navigation }: any) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Add Food Item</Text>
+      <Text style={styles.subtitle}>Track what's in your pantry</Text>
 
-      <Text style={styles.label}>Name *</Text>
-      <TextInput
-        placeholder="e.g. Milk"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-      />
+      <View style={styles.card}>
+        <Text style={styles.label}>Item Name *</Text>
+        <TextInput
+          placeholder="e.g. Milk, Bread, Apples"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
 
-      <Text style={styles.label}>Quantity *</Text>
-      <TextInput
-        placeholder="e.g. 2"
-        value={quantity}
-        onChangeText={setQuantity}
-        keyboardType="numeric"
-        style={styles.input}
-      />
+        <Text style={styles.label}>Quantity *</Text>
+        <TextInput
+          placeholder="e.g. 2"
+          value={quantity}
+          onChangeText={setQuantity}
+          keyboardType="numeric"
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
 
-      <Text style={styles.label}>Unit</Text>
-      <TextInput
-        placeholder="e.g. litres, kg, pcs"
-        value={unit}
-        onChangeText={setUnit}
-        style={styles.input}
-      />
+        <Text style={styles.label}>Unit</Text>
+        <TextInput
+          placeholder="e.g. litres, kg, pcs"
+          value={unit}
+          onChangeText={setUnit}
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
 
-      <Text style={styles.label}>Expiry Date (YYYY-MM-DD)</Text>
-      <TextInput
-        placeholder="e.g. 2026-05-01"
-        value={expiryDate}
-        onChangeText={setExpiryDate}
-        style={styles.input}
-      />
+        <Text style={styles.label}>Expiry Date (YYYY-MM-DD)</Text>
+        <TextInput
+          placeholder="e.g. 2026-05-15"
+          value={expiryDate}
+          onChangeText={setExpiryDate}
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
 
-      <Text style={styles.label}>Price (R)</Text>
-      <TextInput
-        placeholder="e.g. 29.99"
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="numeric"
-        style={styles.input}
-      />
-
-      <Button title="Add Item" onPress={handleSubmit} />
-
-      <View style={styles.cancelButton}>
-        <Button title="Cancel" color="#888" onPress={() => navigation.goBack()} />
+        <Text style={styles.label}>Price (R)</Text>
+        <TextInput
+          placeholder="e.g. 29.99  (optional)"
+          value={price}
+          onChangeText={setPrice}
+          keyboardType="numeric"
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
       </View>
+
+      <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
+        <Text style={styles.primaryButtonText}>Add to Inventory</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+        <Text style={styles.cancelButtonText}>Cancel</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#f2f7f2",
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontWeight: "800",
+    color: "#1a1a1a",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#888",
     marginBottom: 20,
   },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   label: {
-    fontSize: 14,
-    marginBottom: 4,
-    color: "#333",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 16,
+    backgroundColor: "#f5f9f5",
+    borderRadius: 10,
+    padding: 13,
+    fontSize: 15,
+    color: "#1a1a1a",
+    marginBottom: 14,
+  },
+  primaryButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
   cancelButton: {
-    marginTop: 12,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#888",
+    fontSize: 15,
   },
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Text, View, TextInput, Button, Alert, StyleSheet } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
@@ -14,7 +14,7 @@ export default function LoginScreen({ navigation }: any) {
   const [biometricSupported, setBiometricSupported] = useState(false);
 
   useEffect(() => {
-    checkBiometricSupport().then(setBiometricSupported);
+    checkBiometricSupport().then(setBiometricSupported).catch(console.warn);
   }, []);
 
   const handleBiometricLogin = async () => {
@@ -82,38 +82,47 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <View style={styles.header}>
+        <Text style={styles.logo}>🌱</Text>
+        <Text style={styles.appName}>FreshLoop</Text>
+        <Text style={styles.tagline}>Reduce waste. Eat smart.</Text>
+      </View>
 
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-
-      <Button title="Login" onPress={handleLogin} />
-
-      {biometricSupported && (
-        <View style={styles.biometricButton}>
-          <Button title="Login with Biometrics" onPress={handleBiometricLogin} />
-        </View>
-      )}
-
-      <View style={styles.registerLink}>
-        <Button
-          title="Go to Register"
-          onPress={() => navigation.navigate("Register")}
+      <View style={styles.card}>
+        <Text style={styles.inputLabel}>Email</Text>
+        <TextInput
+          placeholder="you@email.com"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={styles.input}
+          placeholderTextColor="#aaa"
         />
+
+        <Text style={styles.inputLabel}>Password</Text>
+        <TextInput
+          placeholder="••••••••"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+
+        <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
+          <Text style={styles.primaryButtonText}>Login</Text>
+        </TouchableOpacity>
+
+        {biometricSupported && (
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleBiometricLogin}>
+            <Text style={styles.secondaryButtonText}>Login with Biometrics</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Register")}>
+          <Text style={styles.linkText}>Don't have an account? Register</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -122,24 +131,85 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f2f7f2",
     justifyContent: "center",
-    padding: 20,
+    padding: 24,
   },
-  title: {
-    fontSize: 28,
-    marginBottom: 20,
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  logo: {
+    fontSize: 52,
+    marginBottom: 8,
+  },
+  appName: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: "#2e7d32",
+    letterSpacing: 0.5,
+  },
+  tagline: {
+    fontSize: 14,
+    color: "#888",
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
+    backgroundColor: "#f5f9f5",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    marginBottom: 16,
+    color: "#1a1a1a",
+  },
+  primaryButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
     marginBottom: 12,
-    padding: 10,
   },
-  registerLink: {
-    marginTop: 20,
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
-  biometricButton: {
-    marginTop: 12,
+  secondaryButton: {
+    borderWidth: 1.5,
+    borderColor: "#2e7d32",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  secondaryButtonText: {
+    color: "#2e7d32",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  linkButton: {
+    alignItems: "center",
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  linkText: {
+    color: "#2e7d32",
+    fontSize: 14,
   },
 });

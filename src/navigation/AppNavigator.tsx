@@ -20,7 +20,7 @@ const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   useEffect(() => {
-    requestNotificationPermission();
+    requestNotificationPermission().catch(console.warn);
   }, []);
 
   return (

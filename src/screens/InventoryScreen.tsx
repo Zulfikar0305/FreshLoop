@@ -58,7 +58,7 @@ export default function InventoryScreen() {
     try {
       const fetched = await getUserInventory(currentUser.uid);
       setItems(fetched);
-      scheduleExpiryNotifications(fetched);
+      scheduleExpiryNotifications(fetched).catch(console.warn);
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {
@@ -161,64 +161,73 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: "#f2f7f2",
+    paddingHorizontal: 16,
+    paddingTop: 20,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f2f7f2",
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontWeight: "800",
+    color: "#1a1a1a",
     marginBottom: 16,
   },
   empty: {
     textAlign: "center",
-    color: "#888",
-    marginTop: 40,
+    color: "#aaa",
+    marginTop: 60,
     fontSize: 16,
   },
   card: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
-    backgroundColor: "#fafafa",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   itemName: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1a1a1a",
     marginBottom: 4,
   },
   detail: {
     fontSize: 14,
-    color: "#555",
+    color: "#666",
+    marginBottom: 2,
   },
   actions: {
     flexDirection: "row",
-    marginTop: 10,
+    marginTop: 12,
     gap: 8,
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: "center",
   },
   usedButton: {
-    backgroundColor: "#27ae60",
+    backgroundColor: "#2e7d32",
   },
   wasteButton: {
-    backgroundColor: "#e74c3c",
+    backgroundColor: "#c62828",
   },
   disabledButton: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
   actionText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 14,
   },
 });

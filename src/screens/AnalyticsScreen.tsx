@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
+  ScrollView,
   Alert,
   ActivityIndicator,
   StyleSheet,
@@ -89,91 +90,118 @@ export default function AnalyticsScreen() {
       : "High waste detected. Try using items before expiry.";
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Analytics</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Items Used</Text>
-        <Text style={[styles.count, styles.usedColor]}>{totalUsed}</Text>
-      </View>
+      <View style={styles.grid}>
+        <View style={styles.card}>
+          <Text style={styles.label}>Items Used</Text>
+          <Text style={[styles.count, styles.usedColor]}>{totalUsed}</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Items Wasted</Text>
-        <Text style={[styles.count, styles.wastedColor]}>{totalWasted}</Text>
-      </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Items Wasted</Text>
+          <Text style={[styles.count, styles.wastedColor]}>{totalWasted}</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Money Saved</Text>
-        <Text style={[styles.count, styles.usedColor]}>R {totalSavedValue.toFixed(2)}</Text>
-      </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Money Saved</Text>
+          <Text style={[styles.count, styles.usedColor]}>R {totalSavedValue.toFixed(2)}</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Money Wasted</Text>
-        <Text style={[styles.count, styles.wastedColor]}>R {totalWastedValue.toFixed(2)}</Text>
-      </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Money Wasted</Text>
+          <Text style={[styles.count, styles.wastedColor]}>R {totalWastedValue.toFixed(2)}</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Efficiency Rate</Text>
-        <Text style={[styles.count, { color: efficiencyColor }]}>{efficiencyRate.toFixed(1)}%</Text>
-      </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Efficiency Rate</Text>
+          <Text style={[styles.count, { color: efficiencyColor }]}>{efficiencyRate.toFixed(1)}%</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Waste Rate</Text>
-        <Text style={[styles.count, styles.wastedColor]}>{wasteRate.toFixed(1)}%</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>Waste Rate</Text>
+          <Text style={[styles.count, styles.wastedColor]}>{wasteRate.toFixed(1)}%</Text>
+        </View>
       </View>
 
       {insightMessage ? (
-        <Text style={[styles.insightMessage, { color: efficiencyColor }]}>
-          {insightMessage}
-        </Text>
+        <View style={styles.insightCard}>
+          <Text style={[styles.insightMessage, { color: efficiencyColor }]}>
+            {insightMessage}
+          </Text>
+        </View>
       ) : null}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    backgroundColor: "#f2f7f2",
     padding: 20,
+    paddingBottom: 40,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f2f7f2",
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 24,
+    fontWeight: "800",
+    color: "#1a1a1a",
+    marginBottom: 20,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 8,
+  },
+  card: {
+    width: "47%",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  label: {
+    fontSize: 13,
+    color: "#888",
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  count: {
+    fontSize: 26,
+    fontWeight: "800",
+  },
+  usedColor: {
+    color: "#2e7d32",
+  },
+  wastedColor: {
+    color: "#c62828",
+  },
+  insightCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    alignItems: "center",
   },
   insightMessage: {
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
     textAlign: "center",
-    marginTop: 8,
-    paddingHorizontal: 8,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    backgroundColor: "#fafafa",
-  },
-  label: {
-    fontSize: 16,
-    color: "#555",
-    marginBottom: 4,
-  },
-  count: {
-    fontSize: 32,
-    fontWeight: "bold",
-  },
-  usedColor: {
-    color: "#27ae60",
-  },
-  wastedColor: {
-    color: "#e74c3c",
   },
 });

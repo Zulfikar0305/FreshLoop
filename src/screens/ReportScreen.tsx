@@ -3,11 +3,10 @@ import {
   View,
   Text,
   TextInput,
-  Button,
+  TouchableOpacity,
   Alert,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
 } from "react-native";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
@@ -93,28 +92,35 @@ export default function ReportScreen() {
         style={[styles.input, styles.multiline]}
       />
 
-      <Button
-        title={submitting ? "Submitting..." : "Submit Report"}
+      <TouchableOpacity
+        style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
         onPress={handleSubmit}
         disabled={submitting}
-      />
+      >
+        <Text style={styles.primaryButtonText}>
+          {submitting ? "Submitting..." : "Submit Report"}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#f2f7f2",
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontWeight: "800",
+    color: "#1a1a1a",
+    marginBottom: 24,
   },
   label: {
-    fontSize: 14,
-    color: "#333",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
     marginBottom: 8,
   },
   typeRow: {
@@ -124,33 +130,55 @@ const styles = StyleSheet.create({
   },
   typeButton: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: "#c8e6c9",
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: "center",
+    backgroundColor: "#f5f9f5",
   },
   typeButtonActive: {
-    borderColor: "#1565c0",
-    backgroundColor: "#e3f2fd",
+    borderColor: "#2e7d32",
+    backgroundColor: "#e8f5e9",
   },
   typeButtonText: {
-    fontSize: 14,
-    color: "#555",
+    fontSize: 13,
+    color: "#888",
+    fontWeight: "500",
   },
   typeButtonTextActive: {
-    color: "#1565c0",
-    fontWeight: "600",
+    color: "#2e7d32",
+    fontWeight: "700",
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: "#1a1a1a",
     marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   multiline: {
-    height: 100,
+    height: 110,
     textAlignVertical: "top",
+  },
+  primaryButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  primaryButtonDisabled: {
+    backgroundColor: "#a5d6a7",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

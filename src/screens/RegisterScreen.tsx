@@ -3,9 +3,9 @@ import {
   Text,
   View,
   TextInput,
-  Button,
   Alert,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
 } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -72,102 +72,157 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Register</Text>
-
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-
-      <Text style={styles.label}>Select Role:</Text>
-      <View style={styles.roleContainer}>
-        <TouchableOpacity
-          style={[styles.roleButton, role === "home" && styles.roleButtonActive]}
-          onPress={() => setRole("home")}
-        >
-          <Text style={[styles.roleText, role === "home" && styles.roleTextActive]}>
-            Home
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.roleButton, role === "business" && styles.roleButtonActive]}
-          onPress={() => setRole("business")}
-        >
-          <Text style={[styles.roleText, role === "business" && styles.roleTextActive]}>
-            Business
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.roleButton, role === "coordinator" && styles.roleButtonActive]}
-          onPress={() => setRole("coordinator")}
-        >
-          <Text style={[styles.roleText, role === "coordinator" && styles.roleTextActive]}>
-            NPO Coordinator
-          </Text>
-        </TouchableOpacity>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.header}>
+        <Text style={styles.logo}>🌱</Text>
+        <Text style={styles.appName}>Create Account</Text>
+        <Text style={styles.tagline}>Join FreshLoop today</Text>
       </View>
 
-      <Button title="Register" onPress={handleRegister} />
-    </View>
+      <View style={styles.card}>
+        <Text style={styles.inputLabel}>Email</Text>
+        <TextInput
+          placeholder="you@email.com"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+
+        <Text style={styles.inputLabel}>Password</Text>
+        <TextInput
+          placeholder="Min. 6 characters"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+
+        <Text style={styles.inputLabel}>I am a...</Text>
+        <View style={styles.roleContainer}>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "home" && styles.roleButtonActive]}
+            onPress={() => setRole("home")}
+          >
+            <Text style={[styles.roleText, role === "home" && styles.roleTextActive]}>
+              Home
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "business" && styles.roleButtonActive]}
+            onPress={() => setRole("business")}
+          >
+            <Text style={[styles.roleText, role === "business" && styles.roleTextActive]}>
+              Business
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "coordinator" && styles.roleButtonActive]}
+            onPress={() => setRole("coordinator")}
+          >
+            <Text style={[styles.roleText, role === "coordinator" && styles.roleTextActive]}>
+              NPO
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.primaryButton} onPress={handleRegister}>
+          <Text style={styles.primaryButtonText}>Create Account</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
+    backgroundColor: "#f2f7f2",
+    padding: 24,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
-  title: {
+  header: {
+    alignItems: "center",
+    marginBottom: 28,
+  },
+  logo: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  appName: {
     fontSize: 28,
-    marginBottom: 20,
+    fontWeight: "800",
+    color: "#2e7d32",
+  },
+  tagline: {
+    fontSize: 14,
+    color: "#888",
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    marginBottom: 12,
-    padding: 10,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
+    backgroundColor: "#f5f9f5",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    marginBottom: 16,
+    color: "#1a1a1a",
   },
   roleContainer: {
     flexDirection: "row",
     marginBottom: 20,
-    gap: 10,
+    gap: 8,
   },
   roleButton: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
+    borderWidth: 1.5,
+    borderColor: "#c8e6c9",
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: "center",
+    backgroundColor: "#f5f9f5",
   },
   roleButtonActive: {
-    borderColor: "#007AFF",
-    backgroundColor: "#E8F0FE",
+    borderColor: "#2e7d32",
+    backgroundColor: "#e8f5e9",
   },
   roleText: {
-    color: "#555",
+    color: "#888",
+    fontSize: 12,
+    fontWeight: "500",
   },
   roleTextActive: {
-    color: "#007AFF",
-    fontWeight: "600",
+    color: "#2e7d32",
+    fontWeight: "700",
+  },
+  primaryButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TextInput,
-  Button,
+  TouchableOpacity,
   Alert,
   StyleSheet,
   ScrollView,
@@ -87,39 +87,67 @@ export default function CreateDonationScreen({ navigation }: any) {
         style={[styles.input, styles.multiline]}
       />
 
-      <Button
-        title={submitting ? "Submitting..." : "Submit Donation"}
+      <TouchableOpacity
+        style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
         onPress={handleSubmit}
         disabled={submitting}
-      />
+      >
+        <Text style={styles.primaryButtonText}>
+          {submitting ? "Submitting..." : "List Donation"}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#f2f7f2",
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontWeight: "800",
+    color: "#1a1a1a",
+    marginBottom: 24,
   },
   label: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: "#1a1a1a",
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   multiline: {
-    height: 80,
+    height: 90,
     textAlignVertical: "top",
+  },
+  primaryButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: "#a5d6a7",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   Switch,
-  Button,
+  TouchableOpacity,
   Alert,
   ActivityIndicator,
   ScrollView,
@@ -178,51 +178,89 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <View style={styles.saveButton}>
-        <Button title={saving ? "Saving..." : "Save Profile"} onPress={handleSave} disabled={saving} />
-      </View>
+      <TouchableOpacity
+        style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
+        onPress={handleSave}
+        disabled={saving}
+      >
+        <Text style={styles.primaryButtonText}>
+          {saving ? "Saving..." : "Save Profile"}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#f2f7f2",
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f2f7f2",
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontWeight: "800",
+    color: "#1a1a1a",
+    marginBottom: 24,
   },
   label: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: "#1a1a1a",
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   switchLabel: {
     fontSize: 15,
     color: "#333",
+    fontWeight: "500",
   },
-  saveButton: {
+  primaryButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
     marginTop: 8,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: "#a5d6a7",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
