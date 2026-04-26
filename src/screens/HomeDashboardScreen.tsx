@@ -1,23 +1,48 @@
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, TouchableOpacity, StyleSheet } from "react-native";
 
-export default function HomeDashboardScreen({ route }: any) {
+export default function HomeDashboardScreen({ route, navigation }: any) {
   const userData = route?.params?.userData ?? null;
 
   const email: string = userData?.email ?? "User";
-  const role: "home" | "business" | undefined = userData?.role;
+  const role: "home" | "business" = userData?.role === "business" ? "business" : "home";
 
   const dashboardTitle =
     role === "business" ? "Business Dashboard" : "Home User Dashboard";
+
+  const commonButtons = [
+    { label: "Add Food", screen: "AddFood" },
+    { label: "View Inventory", screen: "Inventory" },
+    { label: "View Analytics", screen: "Analytics" },
+    { label: "Smart Suggestions", screen: "Suggestions" },
+  ];
+
+  const businessOnlyButtons = [
+    { label: "Donate Food", screen: null }, // placeholder for future feature
+  ];
+
+  const buttons =
+    role === "business" ? [...commonButtons, ...businessOnlyButtons] : commonButtons;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{dashboardTitle}</Text>
       <Text style={styles.welcome}>Welcome, {email}</Text>
-      {role ? (
-        <Text style={styles.role}>Role: {role}</Text>
-      ) : (
-        <Text style={styles.role}>Role: unknown</Text>
-      )}
+      <Text style={styles.role}>Role: {role}</Text>
+
+      <View style={styles.buttonList}>
+        {buttons.map((btn) => (
+          <TouchableOpacity
+            key={btn.label}
+            style={[styles.button, btn.screen === null && styles.placeholderButton]}
+            onPress={() => btn.screen && navigation.navigate(btn.screen)}
+            disabled={btn.screen === null}
+          >
+            <Text style={[styles.buttonText, btn.screen === null && styles.placeholderText]}>
+              {btn.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -25,21 +50,41 @@ export default function HomeDashboardScreen({ route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+    padding: 24,
+    paddingTop: 48,
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 4,
   },
   welcome: {
-    fontSize: 18,
-    marginBottom: 8,
+    fontSize: 16,
+    marginBottom: 4,
   },
   role: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#555",
+    marginBottom: 28,
+  },
+  buttonList: {
+    gap: 12,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  placeholderButton: {
+    backgroundColor: "#ccc",
+  },
+  placeholderText: {
+    color: "#888",
   },
 });
