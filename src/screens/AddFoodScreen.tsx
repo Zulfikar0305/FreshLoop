@@ -28,12 +28,12 @@ export default function AddFoodScreen({ navigation }: any) {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert("Validation Error", "Name is required.");
+      Alert.alert("Missing Field", "Please enter an item name.");
       return;
     }
     const parsedQty = parseFloat(quantity);
     if (isNaN(parsedQty) || parsedQty <= 0) {
-      Alert.alert("Validation Error", "Quantity must be greater than 0.");
+      Alert.alert("Invalid Quantity", "Please enter a quantity greater than 0.");
       return;
     }
 
@@ -47,14 +47,14 @@ export default function AddFoodScreen({ navigation }: any) {
     if (expiryDate.trim()) {
       parsedExpiry = new Date(expiryDate.trim());
       if (isNaN(parsedExpiry.getTime())) {
-        Alert.alert("Validation Error", "Invalid expiry date. Use YYYY-MM-DD format.");
+        Alert.alert("Invalid Date", "Expiry date format is incorrect. Use YYYY-MM-DD, e.g. 2026-05-01.");
         return;
       }
     }
 
     const parsedPrice = price.trim() === "" ? 0 : parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice < 0) {
-      Alert.alert("Validation Error", "Price must be 0 or greater.");
+      Alert.alert("Invalid Price", "Price must be 0 or a positive number.");
       return;
     }
 
@@ -104,25 +104,26 @@ export default function AddFoodScreen({ navigation }: any) {
           placeholderTextColor="#aaa"
         />
 
-        <Text style={styles.label}>Unit</Text>
+        <Text style={styles.label}>Unit <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
-          placeholder="e.g. litres, kg, pcs"
+          placeholder="e.g. litres, kg, items"
           value={unit}
           onChangeText={setUnit}
           style={styles.input}
           placeholderTextColor="#aaa"
         />
 
-        <Text style={styles.label}>Expiry Date (YYYY-MM-DD)</Text>
+        <Text style={styles.label}>Expiry Date <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
-          placeholder="e.g. 2026-05-15"
+          placeholder="e.g. 2026-05-01"
           value={expiryDate}
           onChangeText={setExpiryDate}
           style={styles.input}
           placeholderTextColor="#aaa"
         />
+        <Text style={styles.helperText}>Format: YYYY-MM-DD — leave blank if no expiry</Text>
 
-        <Text style={styles.label}>Price (R)</Text>
+        <Text style={styles.label}>Price (R) <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
           placeholder="e.g. 29.99  (optional)"
           value={price}
@@ -177,6 +178,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#444",
     marginBottom: 6,
+  },
+  optional: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#aaa",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#aaa",
+    marginTop: -10,
+    marginBottom: 14,
   },
   input: {
     backgroundColor: "#f5f9f5",

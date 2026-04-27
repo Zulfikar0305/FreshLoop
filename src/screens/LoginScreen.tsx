@@ -11,6 +11,7 @@ import {
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function LoginScreen({ navigation }: any) {
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        email.trim(),
+        email.trim().toLowerCase(),
         password
       );
 
@@ -76,7 +77,16 @@ export default function LoginScreen({ navigation }: any) {
 
       navigation.navigate("HomeDashboard", { userData });
     } catch (error: any) {
-      Alert.alert("Login Error", error.message);
+      console.log(error.code, error.message);
+      const friendlyMessage =
+        error.code === "auth/invalid-credential" || error.code === "auth/invalid-email"
+          ? "Invalid email or password. Please check your details."
+          : error.code === "auth/user-not-found"
+          ? "No account found with this email."
+          : error.code === "auth/wrong-password"
+          ? "Incorrect password."
+          : error.message;
+      Alert.alert("Login Error", friendlyMessage);
     }
   };
 
@@ -101,14 +111,22 @@ export default function LoginScreen({ navigation }: any) {
         />
 
         <Text style={styles.inputLabel}>Password</Text>
-        <TextInput
-          placeholder="••••••••"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
+        <View style={styles.passwordRow}>
+          <TextInput
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            style={[styles.input, styles.passwordInput]}
+            placeholderTextColor="#aaa"
+          />
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowPassword((v) => !v)}
+          >
+            <Text style={styles.toggleText}>{showPassword ? "Hide" : "Show"}</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
           <Text style={styles.primaryButtonText}>Login</Text>
@@ -177,6 +195,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 16,
     color: "#1a1a1a",
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  toggleText: {
+    color: "#2e7d32",
+    fontSize: 14,
+    fontWeight: "600",
   },
   primaryButton: {
     backgroundColor: "#2e7d32",

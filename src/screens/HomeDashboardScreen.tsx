@@ -1,9 +1,18 @@
-import { Text, View, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, View, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+
+type CardItem = {
+  icon: string;
+  title: string;
+  desc: string;
+  screen: string;
+};
 
 export default function HomeDashboardScreen({ route, navigation }: any) {
   const userData = route?.params?.userData ?? null;
 
-  const email: string = userData?.email ?? "User";
+  const fullName: string =
+    userData?.fullName?.trim() ? userData.fullName.trim() : "FreshLoop User";
+
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business"
       ? "business"
@@ -11,83 +20,89 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       ? "coordinator"
       : "home";
 
-  const dashboardTitle =
+  const roleLabel =
     role === "business"
-      ? "Business Dashboard"
+      ? "Business Account"
       : role === "coordinator"
-      ? "NPO Coordinator Dashboard"
-      : "Home User Dashboard";
+      ? "NPO Coordinator"
+      : "Home User";
 
-  const homeButtons = [
-    { label: "Add Food", screen: "AddFood" },
-    { label: "View Inventory", screen: "Inventory" },
-    { label: "View Analytics", screen: "Analytics" },
-    { label: "Smart Suggestions", screen: "Suggestions" },
-    { label: "FreshBot", screen: "FreshBot" },
-    { label: "Profile", screen: "Profile" },
-    { label: "Camera Test", screen: "CameraTest" },
-    { label: "Report Issue", screen: "Report" },
+  const homeCards: CardItem[] = [
+    { icon: "🍎", title: "Add Food", desc: "Track new pantry items", screen: "AddFood" },
+    { icon: "📦", title: "Inventory", desc: "Browse what you have", screen: "Inventory" },
+    { icon: "📊", title: "Analytics", desc: "View waste statistics", screen: "Analytics" },
+    { icon: "💡", title: "Suggestions", desc: "Smart meal tips", screen: "Suggestions" },
+    { icon: "🤖", title: "FreshBot", desc: "AI pantry advisor", screen: "FreshBot" },
+    { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
+    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "CameraTest" },
+    { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
   ];
 
-  const businessButtons = [
-    { label: "Donate Food", screen: "CreateDonation" },
-    { label: "View Donations", screen: "DonationsList" },
-    { label: "View Analytics", screen: "Analytics" },
-    { label: "FreshBot", screen: "FreshBot" },
-    { label: "Profile", screen: "Profile" },
-    { label: "Camera Test", screen: "CameraTest" },
-    { label: "Report Issue", screen: "Report" },
+  const businessCards: CardItem[] = [
+    { icon: "🎁", title: "Donate Food", desc: "List surplus food", screen: "CreateDonation" },
+    { icon: "📋", title: "Donations", desc: "View all listings", screen: "DonationsList" },
+    { icon: "📊", title: "Analytics", desc: "View waste statistics", screen: "Analytics" },
+    { icon: "🤖", title: "FreshBot", desc: "AI pantry advisor", screen: "FreshBot" },
+    { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
+    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "CameraTest" },
+    { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
   ];
 
-  const coordinatorButtons = [
-    { label: "View Donations", screen: "DonationsList" },
-    { label: "Profile", screen: "Profile" },
-    { label: "Camera Test", screen: "CameraTest" },
-    { label: "Report Issue", screen: "Report" },
+  const coordinatorCards: CardItem[] = [
+    { icon: "📋", title: "Donations", desc: "Claim & manage food", screen: "DonationsList" },
+    { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
+    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "CameraTest" },
+    { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
   ];
 
-  const buttons =
+  const cards =
     role === "business"
-      ? businessButtons
+      ? businessCards
       : role === "coordinator"
-      ? coordinatorButtons
-      : homeButtons;
+      ? coordinatorCards
+      : homeCards;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerCard}>
-        <Text style={styles.logo}>🌱</Text>
-        <View>
-          <Text style={styles.title}>{dashboardTitle}</Text>
-          <Text style={styles.welcome}>{email}</Text>
-          <Text style={styles.role}>{role.charAt(0).toUpperCase() + role.slice(1)} account</Text>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Welcome card */}
+      <View style={styles.welcomeCard}>
+        <Text style={styles.welcomeLogo}>🌱</Text>
+        <View style={styles.welcomeText}>
+          <Text style={styles.greeting}>Hi, {fullName} 👋</Text>
+          <Text style={styles.roleLabel}>{roleLabel}</Text>
+          <Text style={styles.welcomeSub}>Manage your food, reduce waste</Text>
         </View>
       </View>
 
-      <View style={styles.buttonList}>
-        {buttons.map((btn) => (
+      <Text style={styles.sectionTitle}>What would you like to do?</Text>
+
+      {/* 2-column feature grid */}
+      <View style={styles.grid}>
+        {cards.map((card) => (
           <TouchableOpacity
-            key={btn.label}
-            style={styles.button}
-            onPress={() => navigation.navigate(btn.screen)}
+            key={card.screen}
+            style={styles.card}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate(card.screen)}
           >
-            <Text style={styles.buttonText}>{btn.label}</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={styles.cardIcon}>{card.icon}</Text>
+            <Text style={styles.cardTitle}>{card.title}</Text>
+            <Text style={styles.cardDesc}>{card.desc}</Text>
           </TouchableOpacity>
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: "#f2f7f2",
     padding: 20,
     paddingTop: 52,
+    paddingBottom: 40,
   },
-  headerCard: {
+  welcomeCard: {
     backgroundColor: "#2e7d32",
     borderRadius: 20,
     padding: 20,
@@ -101,49 +116,63 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
-  logo: {
-    fontSize: 40,
+  welcomeLogo: {
+    fontSize: 44,
   },
-  title: {
-    fontSize: 17,
-    fontWeight: "700",
+  welcomeText: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 20,
+    fontWeight: "800",
     color: "#fff",
   },
-  welcome: {
+  roleLabel: {
     fontSize: 13,
+    color: "#a5d6a7",
+    marginTop: 3,
+    fontWeight: "600",
+  },
+  welcomeSub: {
+    fontSize: 12,
     color: "#c8e6c9",
     marginTop: 2,
   },
-  role: {
-    fontSize: 12,
-    color: "#a5d6a7",
-    marginTop: 1,
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#444",
+    marginBottom: 14,
   },
-  buttonList: {
-    gap: 10,
-  },
-  button: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+  grid: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  card: {
+    width: "47%",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
-  buttonText: {
-    color: "#1a1a1a",
-    fontSize: 15,
-    fontWeight: "600",
+  cardIcon: {
+    fontSize: 30,
+    marginBottom: 10,
   },
-  arrow: {
-    color: "#2e7d32",
-    fontSize: 22,
-    fontWeight: "300",
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 4,
+  },
+  cardDesc: {
+    fontSize: 12,
+    color: "#888",
+    lineHeight: 17,
   },
 });

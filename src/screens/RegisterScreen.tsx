@@ -15,11 +15,17 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 type Role = "home" | "business" | "coordinator";
 
 export default function RegisterScreen({ navigation }: any) {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<Role>("home");
 
   const handleRegister = async () => {
+    if (!fullName.trim()) {
+      Alert.alert("Validation Error", "Full name is required.");
+      return;
+    }
     if (!email.trim()) {
       Alert.alert("Validation Error", "Email cannot be empty.");
       return;
@@ -44,7 +50,7 @@ export default function RegisterScreen({ navigation }: any) {
         role,
         verificationStatus: "active",
         createdAt: serverTimestamp(),
-        fullName: "",
+        fullName: fullName.trim(),
         householdSize: 0,
         dietaryPreferences: [],
         kitchenEquipment: [],
@@ -57,7 +63,7 @@ export default function RegisterScreen({ navigation }: any) {
         email: user.email,
         role,
         verificationStatus: "active",
-        fullName: "",
+        fullName: fullName.trim(),
         householdSize: 0,
         dietaryPreferences: [],
         kitchenEquipment: [],
@@ -80,6 +86,16 @@ export default function RegisterScreen({ navigation }: any) {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.inputLabel}>Full Name</Text>
+        <TextInput
+          placeholder="e.g. Jane Smith"
+          value={fullName}
+          onChangeText={setFullName}
+          autoCapitalize="words"
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+
         <Text style={styles.inputLabel}>Email</Text>
         <TextInput
           placeholder="you@email.com"
@@ -92,14 +108,22 @@ export default function RegisterScreen({ navigation }: any) {
         />
 
         <Text style={styles.inputLabel}>Password</Text>
-        <TextInput
-          placeholder="Min. 6 characters"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
+        <View style={styles.passwordRow}>
+          <TextInput
+            placeholder="Min. 6 characters"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            style={[styles.input, styles.passwordInput]}
+            placeholderTextColor="#aaa"
+          />
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowPassword((v) => !v)}
+          >
+            <Text style={styles.toggleText}>{showPassword ? "Hide" : "Show"}</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.inputLabel}>I am a...</Text>
         <View style={styles.roleContainer}>
@@ -185,6 +209,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 16,
     color: "#1a1a1a",
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  toggleText: {
+    color: "#2e7d32",
+    fontSize: 14,
+    fontWeight: "600",
   },
   roleContainer: {
     flexDirection: "row",

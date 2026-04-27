@@ -1,16 +1,33 @@
-import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Required by Expo: controls how notifications are handled when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+// Detect Expo Go via both the legacy appOwnership API and the current
+// executionEnvironment API (preferred in SDK 49+). Either being truthy is enough.
+const IS_EXPO_GO =
+  Constants.appOwnership === "expo" ||
+  Constants.executionEnvironment === "storeClient";
+
+// Use a conditional require() instead of a static import so that the
+// expo-notifications native module is NEVER loaded in Expo Go.
+// A static `import` at the top of the file causes the native module to
+// initialise and emit the "Android push notifications removed" console error
+// regardless of any runtime guards. Conditional require() prevents this.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Notifications = IS_EXPO_GO
+  ? null
+  : (require("expo-notifications") as typeof import("expo-notifications"));
+
+if (Notifications) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 const STORAGE_KEY = "notifiedItemIds";
 
@@ -37,6 +54,7 @@ async function persistNotifiedIds(ids: Set<string>): Promise<void> {
 }
 
 export async function requestNotificationPermission(): Promise<void> {
+  if (!Notifications) return; // module not loaded in Expo Go
   const { status } = await Notifications.requestPermissionsAsync();
   if (status !== "granted") {
     console.warn("Notification permission not granted.");
@@ -60,6 +78,8 @@ function getDaysRemaining(expiryDate: Date): number {
 export async function scheduleExpiryNotifications(
   items: ItemForNotification[]
 ): Promise<void> {
+  if (!Notifications) return; // module not loaded in Expo Go
+
   const ids = await getNotifiedIds();
 
   for (const item of items) {
