@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { auth } from "../firebase/firebaseConfig";
 import { getUserInventory, InventoryItem } from "../services/inventoryService";
+import { COLORS } from "../constants/theme";
 
 function generateSuggestions(items: InventoryItem[]): string[] {
   const now = new Date();
@@ -92,7 +93,7 @@ export default function FreshBotScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 48,
   },
@@ -100,30 +101,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textMuted,
     marginBottom: 24,
   },
   allGood: {
     fontSize: 15,
-    color: "#2e7d32",
+    color: COLORS.primary,
     textAlign: "center",
     marginTop: 60,
     fontWeight: "500",
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderLeftWidth: 4,
-    borderLeftColor: "#ffc107",
+    borderLeftColor: COLORS.accent,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
   },
   tip: {
     fontSize: 15,
-    color: "#333",
+    color: COLORS.text,
     lineHeight: 22,
   },
 });

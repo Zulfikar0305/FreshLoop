@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { COLORS } from "../constants/theme";
 
 export default function CreateDonationScreen({ navigation }: any) {
   const [foodName, setFoodName] = useState("");
@@ -102,28 +103,28 @@ export default function CreateDonationScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 48,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 24,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#444",
+    color: COLORS.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -136,14 +137,14 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   primaryButton: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 8,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#a5d6a7",
+    backgroundColor: "#80CECE",
   },
   primaryButtonText: {
     color: "#fff",

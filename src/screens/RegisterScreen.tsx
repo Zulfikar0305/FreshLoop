@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Image,
 } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { COLORS } from "../constants/theme";
 
 type Role = "home" | "business" | "coordinator";
 
@@ -80,7 +82,7 @@ export default function RegisterScreen({ navigation }: any) {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.logo}>🌱</Text>
+        <Image source={require("../../assets/images/freshloop-logo.png")} style={styles.logoImage} resizeMode="contain" />
         <Text style={styles.appName}>Create Account</Text>
         <Text style={styles.tagline}>Join FreshLoop today</Text>
       </View>
@@ -163,7 +165,7 @@ export default function RegisterScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 24,
     paddingTop: 60,
     paddingBottom: 40,
@@ -172,22 +174,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 28,
   },
-  logo: {
-    fontSize: 48,
-    marginBottom: 8,
+  logoImage: {
+    width: 150,
+    height: 150,
+    marginTop: 8,
+    marginBottom: 12,
+    alignSelf: "center",
   },
   appName: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#2e7d32",
+    color: COLORS.primary,
   },
   tagline: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textMuted,
     marginTop: 4,
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 20,
     padding: 24,
     shadowColor: "#000",
@@ -199,16 +204,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#444",
+    color: COLORS.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#f5f9f5",
+    backgroundColor: COLORS.inputBg,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
     marginBottom: 16,
-    color: "#1a1a1a",
+    color: COLORS.text,
   },
   passwordRow: {
     flexDirection: "row",
@@ -224,7 +229,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   toggleText: {
-    color: "#2e7d32",
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -236,27 +241,27 @@ const styles = StyleSheet.create({
   roleButton: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: "#c8e6c9",
+    borderColor: COLORS.border,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#f5f9f5",
+    backgroundColor: COLORS.inputBg,
   },
   roleButtonActive: {
-    borderColor: "#2e7d32",
-    backgroundColor: "#e8f5e9",
+    borderColor: COLORS.primary,
+    backgroundColor: "#E0F4F4",
   },
   roleText: {
-    color: "#888",
+    color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "500",
   },
   roleTextActive: {
-    color: "#2e7d32",
+    color: COLORS.primary,
     fontWeight: "700",
   },
   primaryButton: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",

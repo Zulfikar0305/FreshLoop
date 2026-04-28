@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { COLORS } from "../constants/theme";
 
 export default function CameraTestScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -71,39 +72,41 @@ export default function CameraTestScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    backgroundColor: COLORS.background,
   },
   message: {
     fontSize: 15,
     textAlign: "center",
     marginBottom: 16,
-    color: "#333",
+    color: COLORS.text,
   },
   camera: {
     flex: 1,
   },
   controls: {
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
   },
   uriContainer: {
     padding: 16,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.inputBg,
     borderTopWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
   },
   uriLabel: {
     fontSize: 13,
-    color: "#555",
+    color: COLORS.textMuted,
     marginBottom: 4,
   },
   uriText: {
     fontSize: 12,
-    color: "#222",
+    color: COLORS.text,
   },
 });

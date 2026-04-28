@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { auth } from "../firebase/firebaseConfig";
 import { getUserInventory } from "../services/inventoryService";
+import { COLORS } from "../constants/theme";
 
 type SuggestionItem = {
   id: string;
@@ -112,40 +113,47 @@ export default function SuggestionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
     padding: 20,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: COLORS.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "bold",
+    color: COLORS.text,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 15,
-    color: "#555",
+    color: COLORS.textMuted,
     marginBottom: 20,
   },
   empty: {
     textAlign: "center",
-    color: "#888",
+    color: COLORS.textMuted,
     marginTop: 40,
     fontSize: 16,
   },
   card: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 12,
-    backgroundColor: "#fafafa",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   itemName: {
     fontSize: 18,
     fontWeight: "600",
+    color: COLORS.text,
     marginBottom: 4,
   },
   expiryLabel: {

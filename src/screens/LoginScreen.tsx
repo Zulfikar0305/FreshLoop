@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Text, View, TextInput, TouchableOpacity, Alert, StyleSheet } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Alert, StyleSheet, Image } from "react-native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
@@ -7,6 +7,7 @@ import {
   checkBiometricSupport,
   authenticateWithBiometrics,
 } from "../services/authService";
+import { COLORS } from "../constants/theme";
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -93,7 +94,7 @@ export default function LoginScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>🌱</Text>
+        <Image source={require("../../assets/images/freshloop-logo.png")} style={styles.logoImage} resizeMode="contain" />
         <Text style={styles.appName}>FreshLoop</Text>
         <Text style={styles.tagline}>Reduce waste. Eat smart.</Text>
       </View>
@@ -149,7 +150,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     justifyContent: "center",
     padding: 24,
   },
@@ -157,23 +158,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 32,
   },
-  logo: {
-    fontSize: 52,
-    marginBottom: 8,
+  logoImage: {
+    width: 160,
+    height: 160,
+    marginTop: 16,
+    marginBottom: 12,
+    alignSelf: "center",
   },
   appName: {
     fontSize: 34,
     fontWeight: "800",
-    color: "#2e7d32",
+    color: COLORS.primary,
     letterSpacing: 0.5,
   },
   tagline: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textMuted,
     marginTop: 4,
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 20,
     padding: 24,
     shadowColor: "#000",
@@ -185,16 +189,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#444",
+    color: COLORS.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#f5f9f5",
+    backgroundColor: COLORS.inputBg,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
     marginBottom: 16,
-    color: "#1a1a1a",
+    color: COLORS.text,
   },
   passwordRow: {
     flexDirection: "row",
@@ -210,12 +214,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   toggleText: {
-    color: "#2e7d32",
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: "600",
   },
   primaryButton: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -228,14 +232,14 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     borderWidth: 1.5,
-    borderColor: "#2e7d32",
+    borderColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginBottom: 12,
   },
   secondaryButtonText: {
-    color: "#2e7d32",
+    color: COLORS.primary,
     fontSize: 15,
     fontWeight: "600",
   },
@@ -245,7 +249,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   linkText: {
-    color: "#2e7d32",
+    color: COLORS.primary,
     fontSize: 14,
   },
 });

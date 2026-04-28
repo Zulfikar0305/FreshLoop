@@ -19,6 +19,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { COLORS } from "../constants/theme";
 
 type Donation = {
   id: string;
@@ -214,7 +215,7 @@ export default function DonationsListScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 48,
   },
@@ -222,22 +223,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 16,
   },
   empty: {
     marginTop: 32,
     textAlign: "center",
-    color: "#aaa",
+    color: COLORS.textMuted,
     fontSize: 15,
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   foodName: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 4,
   },
   detail: {
@@ -260,18 +261,18 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 13,
-    color: "#999",
+    color: COLORS.textMuted,
     marginTop: 4,
   },
   claimButton: {
     marginTop: 12,
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
   },
   claimButtonDisabled: {
-    backgroundColor: "#a5d6a7",
+    backgroundColor: "#80CECE",
   },
   claimButtonText: {
     color: "#fff",
@@ -281,18 +282,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginTop: 32,
     marginBottom: 12,
   },
   confirmButton: {
     marginTop: 12,
-    backgroundColor: "#1565c0",
+    backgroundColor: COLORS.accent,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
   },
   confirmButtonDisabled: {
-    backgroundColor: "#90caf9",
+    backgroundColor: "#FFBD90",
   },
 });

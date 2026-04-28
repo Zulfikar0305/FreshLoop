@@ -1,4 +1,5 @@
-import { Text, View, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image } from "react-native";
+import { COLORS } from "../constants/theme";
 
 type CardItem = {
   icon: string;
@@ -66,7 +67,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       {/* Welcome card */}
       <View style={styles.welcomeCard}>
-        <Text style={styles.welcomeLogo}>🌱</Text>
+        <Image source={require("../../assets/images/freshloop-logo.png")} style={styles.welcomeLogoImg} resizeMode="contain" />
         <View style={styles.welcomeText}>
           <Text style={styles.greeting}>Hi, {fullName} 👋</Text>
           <Text style={styles.roleLabel}>{roleLabel}</Text>
@@ -97,13 +98,13 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingTop: 52,
     paddingBottom: 40,
   },
   welcomeCard: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
     padding: 20,
     flexDirection: "row",
@@ -116,8 +117,9 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
-  welcomeLogo: {
-    fontSize: 44,
+  welcomeLogoImg: {
+    width: 56,
+    height: 56,
   },
   welcomeText: {
     flex: 1,
@@ -129,19 +131,19 @@ const styles = StyleSheet.create({
   },
   roleLabel: {
     fontSize: 13,
-    color: "#a5d6a7",
+    color: "#B2F0F0",
     marginTop: 3,
     fontWeight: "600",
   },
   welcomeSub: {
     fontSize: 12,
-    color: "#c8e6c9",
+    color: "#CCF5F5",
     marginTop: 2,
   },
   sectionTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#444",
+    color: COLORS.text,
     marginBottom: 14,
   },
   grid: {
@@ -151,7 +153,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "47%",
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
@@ -167,12 +169,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 4,
   },
   cardDesc: {
     fontSize: 12,
-    color: "#888",
+    color: COLORS.textMuted,
     lineHeight: 17,
   },
 });

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { COLORS } from "../constants/theme";
 
 type IssueType = "user" | "listing" | "system";
 
@@ -107,20 +108,20 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 48,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 24,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#444",
+    color: COLORS.text,
     marginBottom: 8,
   },
   typeRow: {
@@ -131,31 +132,31 @@ const styles = StyleSheet.create({
   typeButton: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: "#c8e6c9",
+    borderColor: COLORS.border,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#f5f9f5",
+    backgroundColor: COLORS.inputBg,
   },
   typeButtonActive: {
-    borderColor: "#2e7d32",
-    backgroundColor: "#e8f5e9",
+    borderColor: COLORS.primary,
+    backgroundColor: "#E0F4F4",
   },
   typeButtonText: {
     fontSize: 13,
-    color: "#888",
+    color: COLORS.textMuted,
     fontWeight: "500",
   },
   typeButtonTextActive: {
-    color: "#2e7d32",
+    color: COLORS.primary,
     fontWeight: "700",
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -168,13 +169,13 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   primaryButton: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
   },
   primaryButtonDisabled: {
-    backgroundColor: "#a5d6a7",
+    backgroundColor: "#80CECE",
   },
   primaryButtonText: {
     color: "#fff",

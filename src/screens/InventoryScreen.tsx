@@ -16,6 +16,7 @@ import {
   updateItemStatus,
   type InventoryItem,
 } from "../services/inventoryService";
+import { COLORS } from "../constants/theme";
 
 function getDaysRemaining(expiryDate: Date | null): number | null {
   if (!expiryDate) return null;
@@ -161,7 +162,7 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     paddingHorizontal: 16,
     paddingTop: 20,
   },
@@ -169,22 +170,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 16,
   },
   empty: {
     textAlign: "center",
-    color: "#aaa",
+    color: COLORS.textMuted,
     marginTop: 60,
     fontSize: 16,
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 4,
   },
   detail: {
@@ -217,10 +218,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   usedButton: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
   },
   wasteButton: {
-    backgroundColor: "#c62828",
+    backgroundColor: COLORS.danger,
   },
   disabledButton: {
     opacity: 0.35,

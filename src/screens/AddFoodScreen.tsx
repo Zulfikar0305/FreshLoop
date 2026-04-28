@@ -10,6 +10,15 @@ import {
 } from "react-native";
 import { auth } from "../firebase/firebaseConfig";
 import { addInventoryItem } from "../services/inventoryService";
+import { COLORS } from "../constants/theme";
+
+type BulkRow = {
+  name: string;
+  quantity: string;
+  unit: string;
+  expiryDate: string;
+  price: string;
+};
 
 export default function AddFoodScreen({ navigation }: any) {
   const [name, setName] = useState("");
@@ -17,6 +26,11 @@ export default function AddFoodScreen({ navigation }: any) {
   const [unit, setUnit] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [price, setPrice] = useState("");
+
+  // Bulk add state
+  const emptyRow = (): BulkRow => ({ name: "", quantity: "", unit: "", expiryDate: "", price: "" });
+  const [bulkRows, setBulkRows] = useState<BulkRow[]>([emptyRow()]);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const resetForm = () => {
     setName("");
@@ -79,11 +93,92 @@ export default function AddFoodScreen({ navigation }: any) {
     }
   };
 
+  const updateBulkRow = (index: number, field: keyof BulkRow, value: string) => {
+    setBulkRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  const addBulkRow = () => {
+    setBulkRows((prev) => [...prev, emptyRow()]);
+  };
+
+  const removeBulkRow = (index: number) => {
+    setBulkRows((prev) => (prev.length === 1 ? [emptyRow()] : prev.filter((_, i) => i !== index)));
+  };
+
+  const handleBulkSave = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      Alert.alert("Error", "No logged-in user found. Please log in again.");
+      return;
+    }
+
+    // Validate each row
+    for (let i = 0; i < bulkRows.length; i++) {
+      const row = bulkRows[i];
+      const rowNum = i + 1;
+
+      if (!row.name.trim()) {
+        Alert.alert("Missing Field", `Row ${rowNum}: Item name is required.`);
+        return;
+      }
+      const parsedQty = parseFloat(row.quantity);
+      if (isNaN(parsedQty) || parsedQty <= 0) {
+        Alert.alert("Invalid Quantity", `Row ${rowNum}: Quantity must be greater than 0.`);
+        return;
+      }
+      if (row.expiryDate.trim()) {
+        const d = new Date(row.expiryDate.trim());
+        if (isNaN(d.getTime())) {
+          Alert.alert("Invalid Date", `Row ${rowNum}: Use YYYY-MM-DD format for expiry date.`);
+          return;
+        }
+      }
+      const parsedPrice = row.price.trim() === "" ? 0 : parseFloat(row.price);
+      if (isNaN(parsedPrice) || parsedPrice < 0) {
+        Alert.alert("Invalid Price", `Row ${rowNum}: Price must be 0 or a positive number.`);
+        return;
+      }
+    }
+
+    setBulkSaving(true);
+    try {
+      for (const row of bulkRows) {
+        const parsedQty = parseFloat(row.quantity);
+        const parsedPrice = row.price.trim() === "" ? 0 : parseFloat(row.price);
+        let parsedExpiry: Date | null = null;
+        if (row.expiryDate.trim()) {
+          parsedExpiry = new Date(row.expiryDate.trim());
+        }
+        await addInventoryItem(
+          {
+            name: row.name.trim(),
+            quantity: parsedQty,
+            unit: row.unit.trim(),
+            expiryDate: parsedExpiry ?? null,
+            price: parsedPrice,
+          },
+          currentUser.uid
+        );
+      }
+
+      const count = bulkRows.length;
+      Alert.alert("Success", `${count} item${count !== 1 ? "s" : ""} saved successfully.`, [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+      setBulkRows([emptyRow()]);
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Add Food Item</Text>
       <Text style={styles.subtitle}>Track what's in your pantry</Text>
 
+      {/* ── Single Item Form ── */}
       <View style={styles.card}>
         <Text style={styles.label}>Item Name *</Text>
         <TextInput
@@ -125,7 +220,7 @@ export default function AddFoodScreen({ navigation }: any) {
 
         <Text style={styles.label}>Price (R) <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
-          placeholder="e.g. 29.99  (optional)"
+          placeholder="e.g. 29.99"
           value={price}
           onChangeText={setPrice}
           keyboardType="numeric"
@@ -141,29 +236,101 @@ export default function AddFoodScreen({ navigation }: any) {
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
         <Text style={styles.cancelButtonText}>Cancel</Text>
       </TouchableOpacity>
+
+      {/* ── Bulk Add Section ── */}
+      <View style={styles.sectionDivider} />
+      <Text style={styles.bulkTitle}>Bulk Add Items</Text>
+      <Text style={styles.bulkSubtitle}>Enter multiple items at once</Text>
+
+      {bulkRows.map((row, index) => (
+        <View key={index} style={styles.bulkCard}>
+          <View style={styles.bulkCardHeader}>
+            <Text style={styles.bulkRowLabel}>Item {index + 1}</Text>
+            <TouchableOpacity onPress={() => removeBulkRow(index)} style={styles.removeButton}>
+              <Text style={styles.removeButtonText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            placeholder="Name *"
+            value={row.name}
+            onChangeText={(v) => updateBulkRow(index, "name", v)}
+            style={styles.bulkInput}
+            placeholderTextColor="#aaa"
+          />
+          <View style={styles.bulkRow}>
+            <TextInput
+              placeholder="Qty *"
+              value={row.quantity}
+              onChangeText={(v) => updateBulkRow(index, "quantity", v)}
+              keyboardType="numeric"
+              style={[styles.bulkInput, styles.bulkInputHalf]}
+              placeholderTextColor="#aaa"
+            />
+            <TextInput
+              placeholder="Unit"
+              value={row.unit}
+              onChangeText={(v) => updateBulkRow(index, "unit", v)}
+              style={[styles.bulkInput, styles.bulkInputHalf]}
+              placeholderTextColor="#aaa"
+            />
+          </View>
+          <View style={styles.bulkRow}>
+            <TextInput
+              placeholder="Expiry (YYYY-MM-DD)"
+              value={row.expiryDate}
+              onChangeText={(v) => updateBulkRow(index, "expiryDate", v)}
+              style={[styles.bulkInput, styles.bulkInputHalf]}
+              placeholderTextColor="#aaa"
+            />
+            <TextInput
+              placeholder="Price (R)"
+              value={row.price}
+              onChangeText={(v) => updateBulkRow(index, "price", v)}
+              keyboardType="numeric"
+              style={[styles.bulkInput, styles.bulkInputHalf]}
+              placeholderTextColor="#aaa"
+            />
+          </View>
+        </View>
+      ))}
+
+      <TouchableOpacity style={styles.addRowButton} onPress={addBulkRow}>
+        <Text style={styles.addRowButtonText}>+ Add Another Item</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.bulkSaveButton, bulkSaving && styles.bulkSaveButtonDisabled]}
+        onPress={handleBulkSave}
+        disabled={bulkSaving}
+      >
+        <Text style={styles.primaryButtonText}>
+          {bulkSaving ? "Saving..." : `Save All ${bulkRows.length} Item${bulkRows.length !== 1 ? "s" : ""}`}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 48,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textMuted,
     marginBottom: 20,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -176,7 +343,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#444",
+    color: COLORS.text,
     marginBottom: 6,
   },
   optional: {
@@ -191,15 +358,15 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   input: {
-    backgroundColor: "#f5f9f5",
+    backgroundColor: COLORS.inputBg,
     borderRadius: 10,
     padding: 13,
     fontSize: 15,
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 14,
   },
   primaryButton: {
-    backgroundColor: "#2e7d32",
+    backgroundColor: COLORS.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -216,7 +383,96 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#888",
+    color: COLORS.textMuted,
     fontSize: 15,
+  },
+  // Bulk section
+  sectionDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 28,
+  },
+  bulkTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  bulkSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginBottom: 16,
+  },
+  bulkCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  bulkCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  bulkRowLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+  removeButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  removeButtonText: {
+    fontSize: 13,
+    color: COLORS.danger,
+    fontWeight: "600",
+  },
+  bulkInput: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 9,
+    padding: 11,
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  bulkRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  bulkInputHalf: {
+    flex: 1,
+    marginBottom: 8,
+  },
+  addRowButton: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  addRowButtonText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  bulkSaveButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  bulkSaveButtonDisabled: {
+    backgroundColor: "#FFBD90",
   },
 });

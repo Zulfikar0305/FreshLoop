@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { COLORS } from "../constants/theme";
 
 export default function AnalyticsScreen() {
   const [totalUsed, setTotalUsed] = useState(0);
@@ -138,7 +139,7 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 40,
   },
@@ -146,12 +147,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f2f7f2",
+    backgroundColor: COLORS.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#1a1a1a",
+    color: COLORS.text,
     marginBottom: 20,
   },
   grid: {
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "47%",
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: "#888",
+    color: COLORS.textMuted,
     marginBottom: 6,
     fontWeight: "500",
   },
@@ -182,13 +183,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   usedColor: {
-    color: "#2e7d32",
+    color: COLORS.primary,
   },
   wastedColor: {
-    color: "#c62828",
+    color: COLORS.danger,
   },
   insightCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
     marginTop: 4,
