@@ -1,5 +1,6 @@
 import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image } from "react-native";
 import { COLORS } from "../constants/theme";
+import BottomNav from "../components/BottomNav";
 
 type CardItem = {
   icon: string;
@@ -64,6 +65,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       : homeCards;
 
   return (
+    <View style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       {/* Welcome card */}
       <View style={styles.welcomeCard}>
@@ -84,7 +86,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
             key={card.screen}
             style={styles.card}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate(card.screen)}
+            onPress={() => navigation.navigate(card.screen, { userData })}
           >
             <Text style={styles.cardIcon}>{card.icon}</Text>
             <Text style={styles.cardTitle}>{card.title}</Text>
@@ -93,10 +95,16 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         ))}
       </View>
     </ScrollView>
+    <BottomNav navigation={navigation} active="HomeDashboard" role={role} userData={userData} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     backgroundColor: COLORS.background,
     padding: 20,

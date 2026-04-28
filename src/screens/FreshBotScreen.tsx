@@ -10,6 +10,7 @@ import {
 import { auth } from "../firebase/firebaseConfig";
 import { getUserInventory, InventoryItem } from "../services/inventoryService";
 import { COLORS } from "../constants/theme";
+import BottomNav from "../components/BottomNav";
 
 function generateSuggestions(items: InventoryItem[]): string[] {
   const now = new Date();
@@ -37,7 +38,11 @@ function generateSuggestions(items: InventoryItem[]): string[] {
   return suggestions;
 }
 
-export default function FreshBotScreen() {
+export default function FreshBotScreen({ navigation, route }: any) {
+  const userData = route?.params?.userData ?? null;
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business" ? "business" :
+    userData?.role === "coordinator" ? "coordinator" : "home";
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,6 +77,7 @@ export default function FreshBotScreen() {
   }
 
   return (
+    <View style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>FreshBot</Text>
       <Text style={styles.subtitle}>AI-style pantry assistant</Text>
@@ -88,10 +94,16 @@ export default function FreshBotScreen() {
         ))
       )}
     </ScrollView>
+    <BottomNav navigation={navigation} active="FreshBot" role={role} userData={userData} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     backgroundColor: COLORS.background,
     padding: 20,

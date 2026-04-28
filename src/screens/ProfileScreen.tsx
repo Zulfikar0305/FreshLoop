@@ -13,6 +13,7 @@ import {
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { COLORS } from "../constants/theme";
+import BottomNav from "../components/BottomNav";
 
 type ProfileData = {
   fullName: string;
@@ -23,7 +24,11 @@ type ProfileData = {
   analyticsConsent: boolean;
 };
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation, route }: any) {
+  const userData = route?.params?.userData ?? null;
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business" ? "business" :
+    userData?.role === "coordinator" ? "coordinator" : "home";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
@@ -127,6 +132,7 @@ export default function ProfileScreen() {
   }
 
   return (
+    <View style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>My Profile</Text>
 
@@ -189,10 +195,16 @@ export default function ProfileScreen() {
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    <BottomNav navigation={navigation} active="Profile" role={role} userData={userData} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     backgroundColor: COLORS.background,
     padding: 20,

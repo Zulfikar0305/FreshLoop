@@ -10,8 +10,13 @@ import {
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { COLORS } from "../constants/theme";
+import BottomNav from "../components/BottomNav";
 
-export default function AnalyticsScreen() {
+export default function AnalyticsScreen({ navigation, route }: any) {
+  const userData = route?.params?.userData ?? null;
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business" ? "business" :
+    userData?.role === "coordinator" ? "coordinator" : "home";
   const [totalUsed, setTotalUsed] = useState(0);
   const [totalWasted, setTotalWasted] = useState(0);
   const [totalSavedValue, setTotalSavedValue] = useState(0);
@@ -91,6 +96,7 @@ export default function AnalyticsScreen() {
       : "High waste detected. Try using items before expiry.";
 
   return (
+    <View style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Analytics</Text>
 
@@ -134,10 +140,16 @@ export default function AnalyticsScreen() {
         </View>
       ) : null}
     </ScrollView>
+    <BottomNav navigation={navigation} active="Analytics" role={role} userData={userData} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     backgroundColor: COLORS.background,
     padding: 20,

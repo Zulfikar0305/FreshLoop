@@ -17,6 +17,7 @@ import {
   type InventoryItem,
 } from "../services/inventoryService";
 import { COLORS } from "../constants/theme";
+import BottomNav from "../components/BottomNav";
 
 function getDaysRemaining(expiryDate: Date | null): number | null {
   if (!expiryDate) return null;
@@ -42,7 +43,11 @@ function getExpiryLabel(days: number | null): string {
   return `Expires in ${days} day${days !== 1 ? "s" : ""}`;
 }
 
-export default function InventoryScreen() {
+export default function InventoryScreen({ navigation, route }: any) {
+  const userData = route?.params?.userData ?? null;
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business" ? "business" :
+    userData?.role === "coordinator" ? "coordinator" : "home";
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -112,6 +117,7 @@ export default function InventoryScreen() {
       <Text style={styles.title}>My Inventory</Text>
       <FlatList
         data={items}
+        style={{ flex: 1 }}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
           <Text style={styles.empty}>No items found.</Text>
@@ -155,6 +161,7 @@ export default function InventoryScreen() {
           );
         }}
       />
+      <BottomNav navigation={navigation} active="Inventory" role={role} userData={userData} />
     </View>
   );
 }

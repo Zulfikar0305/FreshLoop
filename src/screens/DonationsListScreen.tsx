@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { COLORS } from "../constants/theme";
+import BottomNav from "../components/BottomNav";
 
 type Donation = {
   id: string;
@@ -28,7 +29,11 @@ type Donation = {
   description: string;
 };
 
-export default function DonationsListScreen() {
+export default function DonationsListScreen({ navigation, route }: any) {
+  const userData = route?.params?.userData ?? null;
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business" ? "business" :
+    userData?.role === "coordinator" ? "coordinator" : "home";
   const [donations, setDonations] = useState<Donation[]>([]);
   const [claimedDonations, setClaimedDonations] = useState<Donation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +154,7 @@ export default function DonationsListScreen() {
   }
 
   return (
+    <View style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Available Donations</Text>
 
@@ -210,10 +216,16 @@ export default function DonationsListScreen() {
         </>
       )}
     </ScrollView>
+    <BottomNav navigation={navigation} active="DonationsList" role={role} userData={userData} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     backgroundColor: COLORS.background,
     padding: 20,
