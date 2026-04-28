@@ -17,6 +17,7 @@ export type InventoryItemInput = {
   unit: string;
   expiryDate: Date | null;
   price: number;
+  photoUri?: string;
 };
 
 export type InventoryItem = {
@@ -40,6 +41,7 @@ export async function addInventoryItem(
     unit: item.unit,
     expiryDate: item.expiryDate ?? null,
     price: item.price,
+    ...(item.photoUri ? { photoUri: item.photoUri } : {}),
     createdAt: serverTimestamp(),
     status: "active",
   });

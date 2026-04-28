@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   Alert,
   StyleSheet,
   ScrollView,
+  Image,
+  ActivityIndicator,
 } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { auth } from "../firebase/firebaseConfig";
 import { addInventoryItem } from "../services/inventoryService";
 import { COLORS } from "../constants/theme";
@@ -35,12 +38,47 @@ export default function AddFoodScreen({ navigation }: any) {
   const [bulkRows, setBulkRows] = useState<BulkRow[]>([emptyRow()]);
   const [bulkSaving, setBulkSaving] = useState(false);
 
+  // Camera state
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
   const resetForm = () => {
     setName("");
     setQuantity("");
     setUnit("");
     setExpiryDate("");
     setPrice("");
+    setPhotoUri(null);
+  };
+
+  const handleOpenCamera = async () => {
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        Alert.alert("Permission Required", "Camera access is needed to photograph food items.");
+        return;
+      }
+    }
+    setCameraOpen(true);
+  };
+
+  const handleTakePhoto = async () => {
+    if (!cameraRef.current) return;
+    setCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync();
+      if (photo?.uri) {
+        setPhotoUri(photo.uri);
+      }
+      setCameraOpen(false);
+    } catch {
+      Alert.alert("Error", "Failed to capture photo. Please try again.");
+    } finally {
+      setCapturing(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -83,6 +121,7 @@ export default function AddFoodScreen({ navigation }: any) {
           unit: unit.trim(),
           expiryDate: parsedExpiry ?? null,
           price: parsedPrice,
+          ...(photoUri ? { photoUri } : {}),
         },
         currentUser.uid
       );
@@ -176,6 +215,39 @@ export default function AddFoodScreen({ navigation }: any) {
     }
   };
 
+  // ── Camera overlay (replaces screen while open) ──
+  if (cameraOpen) {
+    if (!cameraPermission?.granted) {
+      return (
+        <View style={styles.cameraCentered}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
+    }
+    return (
+      <View style={styles.cameraContainer}>
+        <CameraView ref={cameraRef} style={styles.cameraView} facing="back" />
+        <View style={styles.cameraControls}>
+          <TouchableOpacity
+            style={[styles.captureButton, capturing && styles.captureButtonDisabled]}
+            onPress={handleTakePhoto}
+            disabled={capturing}
+          >
+            <Text style={styles.captureButtonText}>
+              {capturing ? "Capturing..." : "📷  Take Photo"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelCameraButton}
+            onPress={() => setCameraOpen(false)}
+          >
+            <Text style={styles.cancelCameraText}>Cancel Camera</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Add Food Item</Text>
@@ -252,6 +324,26 @@ export default function AddFoodScreen({ navigation }: any) {
               style={styles.input}
               placeholderTextColor="#aaa"
             />
+
+            {/* ── Camera / Photo section ── */}
+            <View style={styles.photoDivider} />
+            <Text style={styles.label}>Photo <Text style={styles.optional}>(optional)</Text></Text>
+
+            {photoUri ? (
+              <View style={styles.photoPreviewContainer}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
+                <Text style={styles.photoHelperText}>
+                  Photo captured. Confirm the food name and expiry date before saving.
+                </Text>
+                <TouchableOpacity style={styles.retakeButton} onPress={handleOpenCamera}>
+                  <Text style={styles.retakeButtonText}>🔄  Retake Photo</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.scanButton} onPress={handleOpenCamera}>
+                <Text style={styles.scanButtonText}>📷  Scan / Photograph Food</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
@@ -527,5 +619,97 @@ const styles = StyleSheet.create({
   },
   bulkSaveButtonDisabled: {
     backgroundColor: "#FFBD90",
+  },
+  // ── Camera overlay ──
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  cameraCentered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  cameraView: {
+    flex: 1,
+  },
+  cameraControls: {
+    backgroundColor: "#111",
+    padding: 20,
+    gap: 10,
+  },
+  captureButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  captureButtonDisabled: {
+    backgroundColor: "#4DBBBB",
+  },
+  captureButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  cancelCameraButton: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  cancelCameraText: {
+    color: "#aaa",
+    fontSize: 15,
+  },
+  // ── Photo preview (in single form) ──
+  photoDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 12,
+  },
+  photoPreviewContainer: {
+    marginBottom: 4,
+  },
+  photoPreview: {
+    width: "100%",
+    height: 160,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: COLORS.inputBg,
+  },
+  photoHelperText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: "500",
+    marginBottom: 10,
+    lineHeight: 17,
+  },
+  retakeButton: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  retakeButtonText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  scanButton: {
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  scanButtonText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
