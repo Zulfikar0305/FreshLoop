@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  ActivityIndicator,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { auth } from "../firebase/firebaseConfig";
@@ -72,8 +71,10 @@ export default function AddFoodScreen({ navigation }: any) {
       const photo = await cameraRef.current.takePictureAsync();
       if (photo?.uri) {
         setPhotoUri(photo.uri);
+        setCameraOpen(false);
+      } else {
+        Alert.alert("Error", "Photo could not be captured. Please try again.");
       }
-      setCameraOpen(false);
     } catch {
       Alert.alert("Error", "Failed to capture photo. Please try again.");
     } finally {
@@ -217,13 +218,6 @@ export default function AddFoodScreen({ navigation }: any) {
 
   // ── Camera overlay (replaces screen while open) ──
   if (cameraOpen) {
-    if (!cameraPermission?.granted) {
-      return (
-        <View style={styles.cameraCentered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      );
-    }
     return (
       <View style={styles.cameraContainer}>
         <CameraView ref={cameraRef} style={styles.cameraView} facing="back" />
@@ -624,12 +618,6 @@ const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
     backgroundColor: "#000",
-  },
-  cameraCentered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
   },
   cameraView: {
     flex: 1,
