@@ -20,14 +20,17 @@ type BulkRow = {
   price: string;
 };
 
+type Mode = "single" | "bulk";
+
 export default function AddFoodScreen({ navigation }: any) {
+  const [mode, setMode] = useState<Mode>("single");
+
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [price, setPrice] = useState("");
 
-  // Bulk add state
   const emptyRow = (): BulkRow => ({ name: "", quantity: "", unit: "", expiryDate: "", price: "" });
   const [bulkRows, setBulkRows] = useState<BulkRow[]>([emptyRow()]);
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -174,140 +177,170 @@ export default function AddFoodScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Add Food Item</Text>
       <Text style={styles.subtitle}>Track what's in your pantry</Text>
 
-      {/* ── Single Item Form ── */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Item Name *</Text>
-        <TextInput
-          placeholder="e.g. Milk, Bread, Apples"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-
-        <Text style={styles.label}>Quantity *</Text>
-        <TextInput
-          placeholder="e.g. 2"
-          value={quantity}
-          onChangeText={setQuantity}
-          keyboardType="numeric"
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-
-        <Text style={styles.label}>Unit <Text style={styles.optional}>(optional)</Text></Text>
-        <TextInput
-          placeholder="e.g. litres, kg, items"
-          value={unit}
-          onChangeText={setUnit}
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-
-        <Text style={styles.label}>Expiry Date <Text style={styles.optional}>(optional)</Text></Text>
-        <TextInput
-          placeholder="e.g. 2026-05-01"
-          value={expiryDate}
-          onChangeText={setExpiryDate}
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
-        <Text style={styles.helperText}>Format: YYYY-MM-DD — leave blank if no expiry</Text>
-
-        <Text style={styles.label}>Price (R) <Text style={styles.optional}>(optional)</Text></Text>
-        <TextInput
-          placeholder="e.g. 29.99"
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="numeric"
-          style={styles.input}
-          placeholderTextColor="#aaa"
-        />
+      {/* ── Mode Toggle ── */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, mode === "single" && styles.toggleButtonActive]}
+          onPress={() => setMode("single")}
+        >
+          <Text style={[styles.toggleButtonText, mode === "single" && styles.toggleButtonTextActive]}>
+            Single Add
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, mode === "bulk" && styles.toggleButtonActive]}
+          onPress={() => setMode("bulk")}
+        >
+          <Text style={[styles.toggleButtonText, mode === "bulk" && styles.toggleButtonTextActive]}>
+            Bulk Add
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-        <Text style={styles.primaryButtonText}>Add to Inventory</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelButtonText}>Cancel</Text>
-      </TouchableOpacity>
-
-      {/* ── Bulk Add Section ── */}
-      <View style={styles.sectionDivider} />
-      <Text style={styles.bulkTitle}>Bulk Add Items</Text>
-      <Text style={styles.bulkSubtitle}>Enter multiple items at once</Text>
-
-      {bulkRows.map((row, index) => (
-        <View key={index} style={styles.bulkCard}>
-          <View style={styles.bulkCardHeader}>
-            <Text style={styles.bulkRowLabel}>Item {index + 1}</Text>
-            <TouchableOpacity onPress={() => removeBulkRow(index)} style={styles.removeButton}>
-              <Text style={styles.removeButtonText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TextInput
-            placeholder="Name *"
-            value={row.name}
-            onChangeText={(v) => updateBulkRow(index, "name", v)}
-            style={styles.bulkInput}
-            placeholderTextColor="#aaa"
-          />
-          <View style={styles.bulkRow}>
+      {/* ── Single Add Mode ── */}
+      {mode === "single" && (
+        <>
+          <View style={styles.card}>
+            <Text style={styles.label}>Item Name *</Text>
             <TextInput
-              placeholder="Qty *"
-              value={row.quantity}
-              onChangeText={(v) => updateBulkRow(index, "quantity", v)}
+              placeholder="e.g. Milk, Bread, Apples"
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+              placeholderTextColor="#aaa"
+            />
+
+            <Text style={styles.label}>Quantity *</Text>
+            <TextInput
+              placeholder="e.g. 2"
+              value={quantity}
+              onChangeText={setQuantity}
               keyboardType="numeric"
-              style={[styles.bulkInput, styles.bulkInputHalf]}
+              style={styles.input}
               placeholderTextColor="#aaa"
             />
+
+            <Text style={styles.label}>Unit <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
-              placeholder="Unit"
-              value={row.unit}
-              onChangeText={(v) => updateBulkRow(index, "unit", v)}
-              style={[styles.bulkInput, styles.bulkInputHalf]}
+              placeholder="e.g. litres, kg, items"
+              value={unit}
+              onChangeText={setUnit}
+              style={styles.input}
               placeholderTextColor="#aaa"
             />
-          </View>
-          <View style={styles.bulkRow}>
+
+            <Text style={styles.label}>Expiry Date <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
-              placeholder="Expiry (YYYY-MM-DD)"
-              value={row.expiryDate}
-              onChangeText={(v) => updateBulkRow(index, "expiryDate", v)}
-              style={[styles.bulkInput, styles.bulkInputHalf]}
+              placeholder="e.g. 2026-05-01"
+              value={expiryDate}
+              onChangeText={setExpiryDate}
+              style={styles.input}
               placeholderTextColor="#aaa"
             />
+            <Text style={styles.helperText}>Format: YYYY-MM-DD — leave blank if no expiry</Text>
+
+            <Text style={styles.label}>Price (R) <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
-              placeholder="Price (R)"
-              value={row.price}
-              onChangeText={(v) => updateBulkRow(index, "price", v)}
+              placeholder="e.g. 29.99"
+              value={price}
+              onChangeText={setPrice}
               keyboardType="numeric"
-              style={[styles.bulkInput, styles.bulkInputHalf]}
+              style={styles.input}
               placeholderTextColor="#aaa"
             />
           </View>
-        </View>
-      ))}
 
-      <TouchableOpacity style={styles.addRowButton} onPress={addBulkRow}>
-        <Text style={styles.addRowButtonText}>+ Add Another Item</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
+            <Text style={styles.primaryButtonText}>Add to Inventory</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.bulkSaveButton, bulkSaving && styles.bulkSaveButtonDisabled]}
-        onPress={handleBulkSave}
-        disabled={bulkSaving}
-      >
-        <Text style={styles.primaryButtonText}>
-          {bulkSaving ? "Saving..." : `Save All ${bulkRows.length} Item${bulkRows.length !== 1 ? "s" : ""}`}
-        </Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {/* ── Bulk Add Mode ── */}
+      {mode === "bulk" && (
+        <>
+          <Text style={styles.bulkSubtitle}>Enter multiple items at once</Text>
+
+          {bulkRows.map((row, index) => (
+            <View key={index} style={styles.bulkCard}>
+              <View style={styles.bulkCardHeader}>
+                <Text style={styles.bulkRowLabel}>Item {index + 1}</Text>
+                <TouchableOpacity onPress={() => removeBulkRow(index)} style={styles.removeButton}>
+                  <Text style={styles.removeButtonText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                placeholder="Name *"
+                value={row.name}
+                onChangeText={(v) => updateBulkRow(index, "name", v)}
+                style={styles.bulkInput}
+                placeholderTextColor="#aaa"
+              />
+              <View style={styles.bulkRow}>
+                <TextInput
+                  placeholder="Qty *"
+                  value={row.quantity}
+                  onChangeText={(v) => updateBulkRow(index, "quantity", v)}
+                  keyboardType="numeric"
+                  style={[styles.bulkInput, styles.bulkInputHalf]}
+                  placeholderTextColor="#aaa"
+                />
+                <TextInput
+                  placeholder="Unit"
+                  value={row.unit}
+                  onChangeText={(v) => updateBulkRow(index, "unit", v)}
+                  style={[styles.bulkInput, styles.bulkInputHalf]}
+                  placeholderTextColor="#aaa"
+                />
+              </View>
+              <View style={styles.bulkRow}>
+                <TextInput
+                  placeholder="Expiry (YYYY-MM-DD)"
+                  value={row.expiryDate}
+                  onChangeText={(v) => updateBulkRow(index, "expiryDate", v)}
+                  style={[styles.bulkInput, styles.bulkInputHalf]}
+                  placeholderTextColor="#aaa"
+                />
+                <TextInput
+                  placeholder="Price (R)"
+                  value={row.price}
+                  onChangeText={(v) => updateBulkRow(index, "price", v)}
+                  keyboardType="numeric"
+                  style={[styles.bulkInput, styles.bulkInputHalf]}
+                  placeholderTextColor="#aaa"
+                />
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.addRowButton} onPress={addBulkRow}>
+            <Text style={styles.addRowButtonText}>+ Add Another Item</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.bulkSaveButton, bulkSaving && styles.bulkSaveButtonDisabled]}
+            onPress={handleBulkSave}
+            disabled={bulkSaving}
+          >
+            <Text style={styles.primaryButtonText}>
+              {bulkSaving ? "Saving..." : `Save All ${bulkRows.length} Item${bulkRows.length !== 1 ? "s" : ""}`}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -327,8 +360,39 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: COLORS.textMuted,
-    marginBottom: 20,
+    marginBottom: 16,
   },
+  // ── Mode toggle ──
+  toggleContainer: {
+    flexDirection: "row",
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 9,
+    alignItems: "center",
+  },
+  toggleButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+  },
+  toggleButtonTextActive: {
+    color: "#fff",
+  },
+  // ── Single form ──
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
@@ -386,18 +450,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 15,
   },
-  // Bulk section
-  sectionDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 28,
-  },
-  bulkTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginBottom: 4,
-  },
+  // ── Bulk section ──
   bulkSubtitle: {
     fontSize: 13,
     color: COLORS.textMuted,
