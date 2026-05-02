@@ -206,7 +206,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       <View style={styles.grid}>
         {cards.map((card) => (
           <TouchableOpacity
-            key={card.screen}
+            key={`${card.title}-${card.screen}`}
             style={styles.card}
             activeOpacity={0.75}
             onPress={() => navigation.navigate(card.screen, { userData })}

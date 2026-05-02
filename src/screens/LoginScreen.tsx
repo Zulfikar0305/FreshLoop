@@ -17,6 +17,10 @@ WebBrowser.maybeCompleteAuthSession();
 // Get this from Firebase Console → Authentication → Sign-in method
 // → Google → Web SDK configuration → Web client ID.
 const GOOGLE_WEB_CLIENT_ID = "538096064336-26a86jhffoag6mn6vbafkrj2hqm9ikek.apps.googleusercontent.com";
+const GOOGLE_ANDROID_CLIENT_ID = "YOUR_ANDROID_CLIENT_ID";
+
+// Google button only renders when the Android client ID has been configured.
+const GOOGLE_CONFIGURED = (GOOGLE_ANDROID_CLIENT_ID as string) !== "YOUR_ANDROID_CLIENT_ID";
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -27,6 +31,7 @@ export default function LoginScreen({ navigation }: any) {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     webClientId: GOOGLE_WEB_CLIENT_ID,
   });
 
@@ -214,15 +219,17 @@ export default function LoginScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
-          onPress={() => promptGoogleAsync()}
-          disabled={googleLoading}
-        >
-          <Text style={styles.googleButtonText}>
-            {googleLoading ? "Signing in..." : "Continue with Google"}
-          </Text>
-        </TouchableOpacity>
+        {GOOGLE_CONFIGURED ? (
+          <TouchableOpacity
+            style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
+            onPress={() => promptGoogleAsync()}
+            disabled={googleLoading}
+          >
+            <Text style={styles.googleButtonText}>
+              {googleLoading ? "Signing in..." : "Continue with Google"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Register")}>
           <Text style={styles.linkText}>Don't have an account? Register</Text>

@@ -24,6 +24,40 @@ type BulkRow = {
 
 type Mode = "single" | "bulk";
 
+// ── Expiry date helpers ──────────────────────────────────────────────────────
+
+/**
+ * Normalises a typed/pasted expiry date into YYYY-MM-DD.
+ * Accepts: 20260502  |  2026/05/02  |  2026-05-02
+ * Applies live auto-formatting when the user types digits only.
+ */
+function normalizeExpiryDate(input: string): string {
+  // Strip slashes/dashes so we can work with raw digits
+  const digits = input.replace(/[\-/]/g, "");
+
+  // If the input was already slash/dash-separated, just normalise separators
+  if (/^\d{4}[\-/]\d{2}[\-/]\d{2}$/.test(input.trim())) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+  }
+
+  // Live auto-format as user types digits: YYYY → YYYY- → YYYY-MM → YYYY-MM-
+  if (/^\d+$/.test(digits)) {
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+  }
+
+  // Return as-is for anything else (let validation handle it)
+  return input;
+}
+
+/** Returns true only if the string is YYYY-MM-DD and represents a real calendar date. */
+function isValidExpiryDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(value);
+  return !isNaN(d.getTime()) && d.toISOString().startsWith(value);
+}
+
 export default function AddFoodScreen({ navigation }: any) {
   const [mode, setMode] = useState<Mode>("single");
 
@@ -101,11 +135,11 @@ export default function AddFoodScreen({ navigation }: any) {
 
     let parsedExpiry: Date | null = null;
     if (expiryDate.trim()) {
-      parsedExpiry = new Date(expiryDate.trim());
-      if (isNaN(parsedExpiry.getTime())) {
-        Alert.alert("Invalid Date", "Expiry date format is incorrect. Use YYYY-MM-DD, e.g. 2026-05-01.");
+      if (!isValidExpiryDate(expiryDate.trim())) {
+        Alert.alert("Invalid Date", "Please enter the expiry date as YYYY-MM-DD, for example 2026-05-02.");
         return;
       }
+      parsedExpiry = new Date(expiryDate.trim());
     }
 
     const parsedPrice = price.trim() === "" ? 0 : parseFloat(price);
@@ -170,9 +204,8 @@ export default function AddFoodScreen({ navigation }: any) {
         return;
       }
       if (row.expiryDate.trim()) {
-        const d = new Date(row.expiryDate.trim());
-        if (isNaN(d.getTime())) {
-          Alert.alert("Invalid Date", `Row ${rowNum}: Use YYYY-MM-DD format for expiry date.`);
+        if (!isValidExpiryDate(row.expiryDate.trim())) {
+          Alert.alert("Invalid Date", `Row ${rowNum}: Please enter the expiry date as YYYY-MM-DD, for example 2026-05-02.`);
           return;
         }
       }
@@ -301,13 +334,15 @@ export default function AddFoodScreen({ navigation }: any) {
 
             <Text style={styles.label}>Expiry Date <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
-              placeholder="e.g. 2026-05-01"
+              placeholder="YYYY-MM-DD e.g. 2026-05-02"
               value={expiryDate}
-              onChangeText={setExpiryDate}
+              onChangeText={(v) => setExpiryDate(normalizeExpiryDate(v))}
+              keyboardType="numeric"
+              maxLength={10}
               style={styles.input}
               placeholderTextColor="#aaa"
             />
-            <Text style={styles.helperText}>Format: YYYY-MM-DD — leave blank if no expiry</Text>
+            <Text style={styles.helperText}>Type digits (e.g. 20260502) or YYYY-MM-DD — leave blank if no expiry</Text>
 
             <Text style={styles.label}>Price (R) <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
@@ -390,9 +425,11 @@ export default function AddFoodScreen({ navigation }: any) {
               </View>
               <View style={styles.bulkRow}>
                 <TextInput
-                  placeholder="Expiry (YYYY-MM-DD)"
+                  placeholder="YYYY-MM-DD"
                   value={row.expiryDate}
-                  onChangeText={(v) => updateBulkRow(index, "expiryDate", v)}
+                  onChangeText={(v) => updateBulkRow(index, "expiryDate", normalizeExpiryDate(v))}
+                  keyboardType="numeric"
+                  maxLength={10}
                   style={[styles.bulkInput, styles.bulkInputHalf]}
                   placeholderTextColor="#aaa"
                 />
