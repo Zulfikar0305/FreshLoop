@@ -30,7 +30,34 @@ type Donation = {
   status: string;
   latitude?: number;
   longitude?: number;
+  createdAt?: number; // epoch ms — used for priority scoring
 };
+
+type Priority = "High" | "Medium" | "Low";
+
+const PRIORITY_COLOR: Record<Priority, string> = {
+  High:   "#ef4444",
+  Medium: "#f59e0b",
+  Low:    "#22c55e",
+};
+
+const PRIORITY_EMOJI: Record<Priority, string> = {
+  High:   "🔴",
+  Medium: "🟡",
+  Low:    "🟢",
+};
+
+function getPriorityLevel(donation: Donation): Priority {
+  const qty = donation.quantity;
+  const ageMs = donation.createdAt
+    ? Date.now() - donation.createdAt
+    : null;
+  const recentMs = 24 * 60 * 60 * 1000; // created within 24 h = urgency boost
+
+  if (qty >= 10 || (ageMs !== null && ageMs < recentMs)) return "High";
+  if (qty >= 5) return "Medium";
+  return "Low";
+}
 
 export default function DonationsListScreen({ navigation, route }: any) {
   const userData = route?.params?.userData ?? null;
@@ -122,6 +149,7 @@ export default function DonationsListScreen({ navigation, route }: any) {
           status: d.data().status ?? "available",
           latitude: typeof d.data().latitude === "number" ? d.data().latitude : undefined,
           longitude: typeof d.data().longitude === "number" ? d.data().longitude : undefined,
+          createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : undefined,
         });
 
         const availableQ = query(
@@ -186,12 +214,19 @@ export default function DonationsListScreen({ navigation, route }: any) {
           <Text style={styles.emptyDesc}>No donations available right now. Check back soon.</Text>
         </View>
       ) : (
-        donations.map((item) => (
+        donations.map((item) => {
+          const priority = getPriorityLevel(item);
+          return (
           <View key={item.id} style={styles.card}>
             <View style={styles.cardTopRow}>
               <Text style={styles.foodName}>{item.foodName}</Text>
-              <View style={[styles.statusBadge, styles.badgeAvailable]}>
-                <Text style={styles.badgeText}>Available</Text>
+              <View style={styles.cardBadges}>
+                <View style={[styles.priorityBadge, { backgroundColor: PRIORITY_COLOR[priority] }]}>
+                  <Text style={styles.priorityBadgeText}>{PRIORITY_EMOJI[priority]} {priority}</Text>
+                </View>
+                <View style={[styles.statusBadge, styles.badgeAvailable]}>
+                  <Text style={styles.badgeText}>Available</Text>
+                </View>
               </View>
             </View>
             <Text style={styles.detail}>Qty: {item.quantity}</Text>
@@ -216,7 +251,8 @@ export default function DonationsListScreen({ navigation, route }: any) {
               </TouchableOpacity>
             )}
           </View>
-        ))
+          );
+        })
       )}
 
       {/* ══ Claimed (coordinator only) ══ */}
@@ -479,5 +515,23 @@ const styles = StyleSheet.create({
   },
   confirmButtonDisabled: {
     backgroundColor: "#FFBD90",
+  },
+  cardBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 1,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  priorityBadge: {
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  priorityBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fff",
   },
 });
