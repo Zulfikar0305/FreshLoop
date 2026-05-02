@@ -1,5 +1,5 @@
-import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
 // Detect Expo Go via both the legacy appOwnership API and the current
 // executionEnvironment API (preferred in SDK 49+). Either being truthy is enough.

@@ -1,17 +1,17 @@
+import { doc, updateDoc } from "firebase/firestore";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
 import { useTheme } from "../context/ThemeContext";
+import { db } from "../firebase/firebaseConfig";
 import type { ThemeColors } from "../theme/colors";
 
 export default function SetupProfileScreen({ navigation, route }: any) {

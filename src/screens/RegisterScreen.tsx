@@ -1,18 +1,18 @@
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import {
-  Text,
-  View,
-  TextInput,
-  Alert,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Image,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { auth, db } from "../firebase/firebaseConfig";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
+import { auth, db } from "../firebase/firebaseConfig";
 import type { ThemeColors } from "../theme/colors";
 
 type Role = "home" | "business" | "coordinator";

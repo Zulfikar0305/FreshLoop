@@ -1,19 +1,19 @@
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-  ScrollView,
-  Image,
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { useTheme } from "../context/ThemeContext";
 import { auth } from "../firebase/firebaseConfig";
 import { addInventoryItem } from "../services/inventoryService";
-import { useTheme } from "../context/ThemeContext";
 import type { ThemeColors } from "../theme/colors";
 
 type BulkRow = {

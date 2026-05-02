@@ -1,13 +1,13 @@
-﻿import { useEffect, useState } from "react";
-import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image, Modal } from "react-native";
+﻿import { doc, getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { doc, getDoc } from "firebase/firestore";
+import BottomNav from "../components/BottomNav";
+import { useTheme } from "../context/ThemeContext";
 import { auth, db } from "../firebase/firebaseConfig";
 import { getUserInventory } from "../services/inventoryService";
-import { scheduleTestNotification, isExpoGo } from "../services/notificationService";
-import { useTheme } from "../context/ThemeContext";
+import { isExpoGo, scheduleTestNotification } from "../services/notificationService";
 import type { ThemeColors } from "../theme/colors";
-import BottomNav from "../components/BottomNav";
 
 type CardItem = {
   icon: string;

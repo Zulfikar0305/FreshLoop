@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { Text, View, TextInput, TouchableOpacity, Alert, StyleSheet, Image } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, onAuthStateChanged } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import { auth, db } from "../firebase/firebaseConfig";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { checkBiometricSupport, authenticateWithBiometrics } from "../services/authService";
+import { useEffect, useState } from "react";
+import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { auth, db } from "../firebase/firebaseConfig";
+import { authenticateWithBiometrics, checkBiometricSupport } from "../services/authService";
 import type { ThemeColors } from "../theme/colors";
 
 // Required for expo-auth-session to close the browser after redirect.

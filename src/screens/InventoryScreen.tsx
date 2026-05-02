@@ -1,28 +1,28 @@
 ﻿import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  Alert,
-  ActivityIndicator,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  Modal,
-  TextInput,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { auth } from "../firebase/firebaseConfig";
-import { createWasteLog } from "../services/wasteService";
-import { scheduleExpiryNotifications } from "../services/notificationService";
-import {
-  getUserInventory,
-  updateItemStatus,
-  updateItemQuantity,
-  type InventoryItem,
-} from "../services/inventoryService";
-import { useTheme } from "../context/ThemeContext";
-import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
+import { useTheme } from "../context/ThemeContext";
+import { auth } from "../firebase/firebaseConfig";
+import {
+    getUserInventory,
+    updateItemQuantity,
+    updateItemStatus,
+    type InventoryItem,
+} from "../services/inventoryService";
+import { scheduleExpiryNotifications } from "../services/notificationService";
+import { createWasteLog } from "../services/wasteService";
+import type { ThemeColors } from "../theme/colors";
 
 function getDaysRemaining(expiryDate: Date | null): number | null {
   if (!expiryDate) return null;

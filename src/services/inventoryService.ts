@@ -1,15 +1,15 @@
 import {
-  collection,
-  addDoc,
-  getDocs,
-  doc,
-  updateDoc,
-  query,
-  where,
-  serverTimestamp,
-  Timestamp,
+    addDoc,
+    collection,
+    doc,
+    getDocs,
+    query,
+    serverTimestamp,
+    Timestamp,
+    updateDoc,
+    where,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "../firebase/firebaseConfig";
 
 export type InventoryItemInput = {

@@ -1,15 +1,15 @@
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-  ActivityIndicator,
+    ActivityIndicator,
+    Alert,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
 import { COLORS } from "../constants/theme";
+import { db } from "../firebase/firebaseConfig";
 
 type Role = "home" | "business" | "coordinator";
 

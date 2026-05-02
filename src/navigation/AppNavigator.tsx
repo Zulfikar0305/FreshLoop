@@ -1,20 +1,20 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useEffect } from "react";
 
-import LoginScreen from "../screens/LoginScreen";
-import RegisterScreen from "../screens/RegisterScreen";
-import HomeDashboardScreen from "../screens/HomeDashboardScreen";
 import AddFoodScreen from "../screens/AddFoodScreen";
-import InventoryScreen from "../screens/InventoryScreen";
 import AnalyticsScreen from "../screens/AnalyticsScreen";
-import SuggestionsScreen from "../screens/SuggestionsScreen";
-import ProfileScreen from "../screens/ProfileScreen";
 import CreateDonationScreen from "../screens/CreateDonationScreen";
 import DonationsListScreen from "../screens/DonationsListScreen";
 import FreshBotScreen from "../screens/FreshBotScreen";
+import HomeDashboardScreen from "../screens/HomeDashboardScreen";
+import InventoryScreen from "../screens/InventoryScreen";
+import LoginScreen from "../screens/LoginScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import RegisterScreen from "../screens/RegisterScreen";
 import ReportScreen from "../screens/ReportScreen";
 import RoleSetupScreen from "../screens/RoleSetupScreen";
 import SetupProfileScreen from "../screens/SetupProfileScreen";
+import SuggestionsScreen from "../screens/SuggestionsScreen";
 import { requestNotificationPermission } from "../services/notificationService";
 
 const Stack = createNativeStackNavigator();

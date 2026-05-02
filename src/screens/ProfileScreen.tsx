@@ -1,21 +1,21 @@
-﻿import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Switch,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
+﻿import { signOut } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { auth, db } from "../firebase/firebaseConfig";
-import { useTheme } from "../context/ThemeContext";
-import type { ThemeColors } from "../theme/colors";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import BottomNav from "../components/BottomNav";
+import { useTheme } from "../context/ThemeContext";
+import { auth, db } from "../firebase/firebaseConfig";
+import type { ThemeColors } from "../theme/colors";
 
 type ProfileData = {
   fullName: string;

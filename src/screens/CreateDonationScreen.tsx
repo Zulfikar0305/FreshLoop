@@ -1,17 +1,17 @@
+import * as Location from "expo-location";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-  ScrollView,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import * as Location from "expo-location";
-import { auth, db } from "../firebase/firebaseConfig";
 import { useTheme } from "../context/ThemeContext";
+import { auth, db } from "../firebase/firebaseConfig";
 import type { ThemeColors } from "../theme/colors";
 
 const DONATION_UNIT_OPTIONS = ["item", "pack", "kg", "L", "box", "pallet"] as const;
