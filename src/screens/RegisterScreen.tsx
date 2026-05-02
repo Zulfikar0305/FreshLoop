@@ -73,7 +73,7 @@ export default function RegisterScreen({ navigation }: any) {
         analyticsConsent: false,
       };
 
-      navigation.navigate("HomeDashboard", { userData });
+      navigation.reset({ index: 0, routes: [{ name: "HomeDashboard", params: { userData } }] });
     } catch (error: any) {
       Alert.alert("Registration Error", error.message);
     }

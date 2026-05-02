@@ -17,6 +17,9 @@ const Notifications = IS_EXPO_GO
   ? null
   : (require("expo-notifications") as typeof import("expo-notifications"));
 
+// Export so screens can conditionally hide notification-dependent UI in Expo Go.
+export const isExpoGo = IS_EXPO_GO;
+
 if (Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -83,11 +86,13 @@ export async function scheduleExpiryNotifications(
   const ids = await getNotifiedIds();
 
   for (const item of items) {
-    if (!item.expiryDate || ids.has(item.id)) continue;
+    if (!item.expiryDate) continue;
 
     const days = getDaysRemaining(item.expiryDate);
 
     if (days < 0) {
+      const key = `${item.id}:expired`;
+      if (ids.has(key)) continue;
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "Food Expired",
@@ -99,8 +104,10 @@ export async function scheduleExpiryNotifications(
           repeats: false,
         },
       });
-      ids.add(item.id);
+      ids.add(key);
     } else if (days <= 2) {
+      const key = `${item.id}:soon`;
+      if (ids.has(key)) continue;
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "Expiring Soon",
@@ -112,10 +119,26 @@ export async function scheduleExpiryNotifications(
           repeats: false,
         },
       });
-      ids.add(item.id);
+      ids.add(key);
     }
   }
 
   await persistNotifiedIds(ids);
+}
+
+/** Schedules a demo notification 2 seconds from now. No-op in Expo Go. */
+export async function scheduleTestNotification(): Promise<void> {
+  if (!Notifications) return;
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "FreshLoop Alerts \u2705",
+      body: "Expiry notifications are working correctly.",
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      repeats: false,
+    },
+  });
 }
 

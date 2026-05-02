@@ -14,6 +14,7 @@ import CreateDonationScreen from "../screens/CreateDonationScreen";
 import DonationsListScreen from "../screens/DonationsListScreen";
 import FreshBotScreen from "../screens/FreshBotScreen";
 import ReportScreen from "../screens/ReportScreen";
+import RoleSetupScreen from "../screens/RoleSetupScreen";
 import { requestNotificationPermission } from "../services/notificationService";
 
 const Stack = createNativeStackNavigator();
@@ -24,7 +25,7 @@ export default function AppNavigator() {
   }, []);
 
   return (
-    <Stack.Navigator initialRouteName="Login">
+    <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="HomeDashboard" component={HomeDashboardScreen} />
@@ -38,6 +39,7 @@ export default function AppNavigator() {
       <Stack.Screen name="DonationsList" component={DonationsListScreen} />
       <Stack.Screen name="FreshBot" component={FreshBotScreen} />
       <Stack.Screen name="Report" component={ReportScreen} />
+      <Stack.Screen name="RoleSetup" component={RoleSetupScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

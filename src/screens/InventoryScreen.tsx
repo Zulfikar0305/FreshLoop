@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
+  Image,
   StyleSheet,
 } from "react-native";
 import { auth } from "../firebase/firebaseConfig";
@@ -128,6 +129,13 @@ export default function InventoryScreen({ navigation, route }: any) {
           const label = getExpiryLabel(days);
           return (
             <View style={styles.card}>
+              {item.photoUrl ? (
+                <Image
+                  source={{ uri: item.photoUrl }}
+                  style={styles.thumbnail}
+                  resizeMode="cover"
+                />
+              ) : null}
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.detail}>
                 Quantity: {item.quantity} {item.unit}
@@ -237,5 +245,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 14,
+  },
+  thumbnail: {
+    width: "100%",
+    height: 140,
+    borderRadius: 10,
+    marginBottom: 10,
   },
 });

@@ -9,8 +9,74 @@ import {
 } from "react-native";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { getUserInventory } from "../services/inventoryService";
 import { COLORS } from "../constants/theme";
 import BottomNav from "../components/BottomNav";
+
+type RiskLevel = "Low" | "Medium" | "High";
+
+type Prediction = {
+  risk: RiskLevel;
+  reason: string;
+  action: string;
+};
+
+function computePrediction(
+  expiredNow: number,
+  expiringSoon: number,
+  activeTotal: number,
+  wasteRate: number
+): Prediction {
+  const urgentRatio = activeTotal === 0 ? 0 : (expiredNow + expiringSoon) / activeTotal;
+
+  if (expiredNow >= 3 || urgentRatio >= 0.5 || wasteRate >= 50) {
+    return {
+      risk: "High",
+      reason:
+        expiredNow >= 3
+          ? `${expiredNow} item${expiredNow !== 1 ? "s" : ""} in your pantry have already expired.`
+          : wasteRate >= 50
+          ? `Your historical waste rate is ${wasteRate.toFixed(0)}% — more than half your food is being wasted.`
+          : `${expiredNow + expiringSoon} out of ${activeTotal} pantry items are expiring imminently.`,
+      action: "Use or donate expiring items today. Review shopping habits to avoid over-buying.",
+    };
+  }
+
+  if (expiringSoon >= 2 || urgentRatio >= 0.25 || wasteRate >= 25) {
+    return {
+      risk: "Medium",
+      reason:
+        expiringSoon >= 2
+          ? `${expiringSoon} item${expiringSoon !== 1 ? "s" : ""} will expire within 3 days.`
+          : `Your waste rate is ${wasteRate.toFixed(0)}% — there's room to improve.`,
+      action: "Plan meals around expiring items this week. Consider batch-cooking or freezing.",
+    };
+  }
+
+  return {
+    risk: "Low",
+    reason:
+      activeTotal === 0
+        ? "No active pantry items tracked yet."
+        : "Most of your pantry is fresh and your usage history looks healthy.",
+    action:
+      activeTotal === 0
+        ? "Add items to your inventory so FreshBot can monitor them."
+        : "Keep it up! Continue planning meals ahead and rotating stock regularly.",
+  };
+}
+
+const RISK_COLOR: Record<RiskLevel, string> = {
+  Low: "#27ae60",
+  Medium: "#e67e22",
+  High: "#e74c3c",
+};
+
+const RISK_EMOJI: Record<RiskLevel, string> = {
+  Low: "🟢",
+  Medium: "🟡",
+  High: "🔴",
+};
 
 export default function AnalyticsScreen({ navigation, route }: any) {
   const userData = route?.params?.userData ?? null;
@@ -21,6 +87,9 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const [totalWasted, setTotalWasted] = useState(0);
   const [totalSavedValue, setTotalSavedValue] = useState(0);
   const [totalWastedValue, setTotalWastedValue] = useState(0);
+  const [expiredNow, setExpiredNow] = useState(0);
+  const [expiringSoon, setExpiringSoon] = useState(0);
+  const [activeTotal, setActiveTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,6 +130,26 @@ export default function AnalyticsScreen({ navigation, route }: any) {
         setTotalWasted(wasted);
         setTotalSavedValue(savedValue);
         setTotalWastedValue(wastedValue);
+
+        // Inventory-based prediction data
+        const inventoryItems = await getUserInventory(currentUser.uid);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const threeDaysLater = new Date(today);
+        threeDaysLater.setDate(today.getDate() + 3);
+
+        const active = inventoryItems.filter((i) => i.status === "active" && i.expiryDate !== null);
+        let expired = 0;
+        let soon = 0;
+        for (const item of active) {
+          const expiry = new Date(item.expiryDate as Date);
+          expiry.setHours(0, 0, 0, 0);
+          if (expiry < today) expired += 1;
+          else if (expiry <= threeDaysLater) soon += 1;
+        }
+        setExpiredNow(expired);
+        setExpiringSoon(soon);
+        setActiveTotal(active.length);
       } catch (error: any) {
         Alert.alert("Error", error.message);
       } finally {
@@ -139,6 +228,63 @@ export default function AnalyticsScreen({ navigation, route }: any) {
           </Text>
         </View>
       ) : null}
+
+      {/* ══ AI Waste Prediction ══ */}
+      {(() => {
+        const prediction = computePrediction(expiredNow, expiringSoon, activeTotal, wasteRate);
+        const riskColor = RISK_COLOR[prediction.risk];
+        return (
+          <View style={styles.predictionSection}>
+            <View style={styles.predictionHeaderRow}>
+              <Text style={styles.predictionTitle}>🤖 AI Waste Prediction</Text>
+            </View>
+
+            <View style={[styles.predictionCard, { borderLeftColor: riskColor }]}>
+              <View style={styles.predictionRiskRow}>
+                <Text style={styles.predictionRiskEmoji}>{RISK_EMOJI[prediction.risk]}</Text>
+                <View>
+                  <Text style={styles.predictionRiskLabel}>Risk Level</Text>
+                  <Text style={[styles.predictionRiskValue, { color: riskColor }]}>
+                    {prediction.risk}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.predictionDivider} />
+
+              <Text style={styles.predictionFieldLabel}>📊 Why</Text>
+              <Text style={styles.predictionFieldValue}>{prediction.reason}</Text>
+
+              <Text style={[styles.predictionFieldLabel, { marginTop: 12 }]}>✅ Recommended Action</Text>
+              <Text style={styles.predictionFieldValue}>{prediction.action}</Text>
+
+              {activeTotal > 0 && (
+                <View style={styles.predictionStats}>
+                  {expiredNow > 0 && (
+                    <View style={[styles.predictionStatPill, { backgroundColor: "#fde8e8" }]}>
+                      <Text style={[styles.predictionStatText, { color: "#e74c3c" }]}>
+                        {expiredNow} expired
+                      </Text>
+                    </View>
+                  )}
+                  {expiringSoon > 0 && (
+                    <View style={[styles.predictionStatPill, { backgroundColor: "#fef4e4" }]}>
+                      <Text style={[styles.predictionStatText, { color: "#e67e22" }]}>
+                        {expiringSoon} expiring soon
+                      </Text>
+                    </View>
+                  )}
+                  <View style={[styles.predictionStatPill, { backgroundColor: "#eaf7ee" }]}>
+                    <Text style={[styles.predictionStatText, { color: "#27ae60" }]}>
+                      {activeTotal} tracked
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+        );
+      })()}
     </ScrollView>
     <BottomNav navigation={navigation} active="Analytics" role={role} userData={userData} />
     </View>
@@ -216,5 +362,86 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
+  },
+
+  // AI Waste Prediction
+  predictionSection: {
+    marginTop: 24,
+  },
+  predictionHeaderRow: {
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    paddingLeft: 10,
+    marginBottom: 14,
+  },
+  predictionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  predictionCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 20,
+    borderLeftWidth: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  predictionRiskRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 4,
+  },
+  predictionRiskEmoji: {
+    fontSize: 36,
+  },
+  predictionRiskLabel: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  predictionRiskValue: {
+    fontSize: 24,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  predictionDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 14,
+  },
+  predictionFieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  predictionFieldValue: {
+    fontSize: 14,
+    color: COLORS.text,
+    lineHeight: 21,
+  },
+  predictionStats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 16,
+  },
+  predictionStatPill: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  predictionStatText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

@@ -11,6 +11,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
 import { COLORS } from "../constants/theme";
 import BottomNav from "../components/BottomNav";
@@ -22,6 +23,9 @@ type ProfileData = {
   kitchenEquipment: string;
   locationConsent: boolean;
   analyticsConsent: boolean;
+  cookingSkill: string;
+  reminderWindowDays: string;
+  wasteGoal: string;
 };
 
 export default function ProfileScreen({ navigation, route }: any) {
@@ -38,6 +42,9 @@ export default function ProfileScreen({ navigation, route }: any) {
     kitchenEquipment: "",
     locationConsent: false,
     analyticsConsent: false,
+    cookingSkill: "",
+    reminderWindowDays: "",
+    wasteGoal: "",
   });
 
   useEffect(() => {
@@ -69,6 +76,9 @@ export default function ProfileScreen({ navigation, route }: any) {
             : "",
           locationConsent: data.locationConsent === true,
           analyticsConsent: data.analyticsConsent === true,
+          cookingSkill: data.cookingSkill ?? "",
+          reminderWindowDays: data.reminderWindowDays != null ? String(data.reminderWindowDays) : "",
+          wasteGoal: data.wasteGoal ?? "",
         });
       } catch (error: any) {
         Alert.alert("Error", error.message);
@@ -79,6 +89,28 @@ export default function ProfileScreen({ navigation, route }: any) {
 
     loadProfile();
   }, []);
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await signOut(auth);
+            } catch {
+              // sign-out errors are non-critical
+            }
+            navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+          },
+        },
+      ]
+    );
+  };
 
   const handleSave = async () => {
     const currentUser = auth.currentUser;
@@ -114,6 +146,9 @@ export default function ProfileScreen({ navigation, route }: any) {
         kitchenEquipment: equipmentList,
         locationConsent: profile.locationConsent,
         analyticsConsent: profile.analyticsConsent,
+        cookingSkill: profile.cookingSkill || null,
+        reminderWindowDays: profile.reminderWindowDays ? parseInt(profile.reminderWindowDays, 10) : null,
+        wasteGoal: profile.wasteGoal || null,
       });
       Alert.alert("Success", "Profile updated.");
     } catch (error: any) {
@@ -141,6 +176,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         value={profile.fullName}
         onChangeText={(v) => setProfile((p) => ({ ...p, fullName: v }))}
         placeholder="e.g. Jane Doe"
+        placeholderTextColor="#aaa"
         style={styles.input}
       />
 
@@ -150,6 +186,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         onChangeText={(v) => setProfile((p) => ({ ...p, householdSize: v }))}
         placeholder="e.g. 4"
         keyboardType="numeric"
+        placeholderTextColor="#aaa"
         style={styles.input}
       />
 
@@ -158,6 +195,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         value={profile.dietaryPreferences}
         onChangeText={(v) => setProfile((p) => ({ ...p, dietaryPreferences: v }))}
         placeholder="e.g. vegetarian, gluten-free"
+        placeholderTextColor="#aaa"
         style={styles.input}
       />
 
@@ -166,8 +204,58 @@ export default function ProfileScreen({ navigation, route }: any) {
         value={profile.kitchenEquipment}
         onChangeText={(v) => setProfile((p) => ({ ...p, kitchenEquipment: v }))}
         placeholder="e.g. oven, blender"
+        placeholderTextColor="#aaa"
         style={styles.input}
       />
+
+      <Text style={styles.label}>Cooking Skill</Text>
+      <View style={styles.chipRow}>
+        {["beginner", "intermediate", "advanced"].map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            style={[styles.chip, profile.cookingSkill === opt && styles.chipActive]}
+            onPress={() => setProfile((p) => ({ ...p, cookingSkill: opt }))}
+          >
+            <Text style={[styles.chipText, profile.cookingSkill === opt && styles.chipTextActive]}>
+              {opt.charAt(0).toUpperCase() + opt.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Reminder Window</Text>
+      <View style={styles.chipRow}>
+        {["1", "3", "7"].map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            style={[styles.chip, profile.reminderWindowDays === opt && styles.chipActive]}
+            onPress={() => setProfile((p) => ({ ...p, reminderWindowDays: opt }))}
+          >
+            <Text style={[styles.chipText, profile.reminderWindowDays === opt && styles.chipTextActive]}>
+              {opt} day{opt !== "1" ? "s" : ""}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Waste Goal</Text>
+      <View style={styles.chipRow}>
+        {[
+          { value: "save_money", label: "💰 Save Money" },
+          { value: "reduce_waste", label: "♻️ Reduce Waste" },
+          { value: "donate_more", label: "🤝 Donate More" },
+        ].map((opt) => (
+          <TouchableOpacity
+            key={opt.value}
+            style={[styles.chip, profile.wasteGoal === opt.value && styles.chipActive]}
+            onPress={() => setProfile((p) => ({ ...p, wasteGoal: opt.value }))}
+          >
+            <Text style={[styles.chipText, profile.wasteGoal === opt.value && styles.chipTextActive]}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <View style={styles.row}>
         <Text style={styles.switchLabel}>Location Consent</Text>
@@ -193,6 +281,10 @@ export default function ProfileScreen({ navigation, route }: any) {
         <Text style={styles.primaryButtonText}>
           {saving ? "Saving..." : "Save Profile"}
         </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>🚪 Log Out</Text>
       </TouchableOpacity>
     </ScrollView>
     <BottomNav navigation={navigation} active="Profile" role={role} userData={userData} />
@@ -275,5 +367,43 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  logoutButton: {
+    borderWidth: 1.5,
+    borderColor: COLORS.danger,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  logoutButtonText: {
+    color: COLORS.danger,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  chipText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: "600",
+  },
+  chipTextActive: {
+    color: "#fff",
   },
 });

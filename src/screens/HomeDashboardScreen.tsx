@@ -1,4 +1,10 @@
+import { useEffect, useState } from "react";
 import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase/firebaseConfig";
+import { getUserInventory } from "../services/inventoryService";
+import { scheduleTestNotification, isExpoGo } from "../services/notificationService";
 import { COLORS } from "../constants/theme";
 import BottomNav from "../components/BottomNav";
 
@@ -8,6 +14,22 @@ type CardItem = {
   desc: string;
   screen: string;
 };
+
+function getSmartTip(wasteGoal: string, expired: number, soon: number): string {
+  if (wasteGoal === "save_money") {
+    if (expired > 0) return `Use ${expired} expired item${expired !== 1 ? "s" : ""} now — don't waste money!`;
+    if (soon > 0) return `Plan meals for ${soon} expiring item${soon !== 1 ? "s" : ""} to save money.`;
+    return "Great job! Efficient pantry — no money wasted right now.";
+  }
+  if (wasteGoal === "donate_more") {
+    if (expired > 0) return `${expired} item${expired !== 1 ? "s" : ""} may be donation candidates — act now.`;
+    if (soon > 0) return `${soon} item${soon !== 1 ? "s" : ""} expiring soon — consider donating surplus.`;
+    return "All clear! No urgent donation candidates right now.";
+  }
+  if (expired > 0) return `${expired} item${expired !== 1 ? "s" : ""} expired — cook or compost today.`;
+  if (soon > 0) return `${soon} item${soon !== 1 ? "s" : ""} expire soon — plan meals now.`;
+  return "Your pantry looks good — keep reducing waste!";
+}
 
 export default function HomeDashboardScreen({ route, navigation }: any) {
   const userData = route?.params?.userData ?? null;
@@ -29,6 +51,57 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       ? "NPO Coordinator"
       : "Home User";
 
+  const [expiredCount, setExpiredCount] = useState(0);
+  const [expiringSoonCount, setExpiringSoonCount] = useState(0);
+  const [alertLoading, setAlertLoading] = useState(true);
+  const [wasteGoal, setWasteGoal] = useState("");
+  const [reminderWindowDays, setReminderWindowDays] = useState(3);
+
+  useEffect(() => {
+    const loadAlerts = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) { setAlertLoading(false); return; }
+      try {
+        const [items, userSnap] = await Promise.all([
+          getUserInventory(currentUser.uid),
+          getDoc(doc(db, "users", currentUser.uid)),
+        ]);
+        let window = 3;
+        if (userSnap.exists()) {
+          const d = userSnap.data();
+          setWasteGoal(d.wasteGoal ?? "");
+          const rwd = d.reminderWindowDays;
+          if (rwd === 1 || rwd === 3 || rwd === 7) {
+            window = rwd;
+            setReminderWindowDays(rwd);
+          }
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const windowDate = new Date(today);
+        windowDate.setDate(today.getDate() + window);
+        let expired = 0;
+        let soon = 0;
+        for (const item of items) {
+          if (item.status !== "active" || !item.expiryDate) continue;
+          const expiry = new Date(item.expiryDate);
+          expiry.setHours(0, 0, 0, 0);
+          if (expiry < today) expired += 1;
+          else if (expiry <= windowDate) soon += 1;
+        }
+        setExpiredCount(expired);
+        setExpiringSoonCount(soon);
+      } catch {
+        // non-critical — dashboard still loads
+      } finally {
+        setAlertLoading(false);
+      }
+    };
+    loadAlerts();
+  }, []);
+
+  const hasAlerts = expiredCount > 0 || expiringSoonCount > 0;
+
   const homeCards: CardItem[] = [
     { icon: "🍎", title: "Add Food", desc: "Track new pantry items", screen: "AddFood" },
     { icon: "📦", title: "Inventory", desc: "Browse what you have", screen: "Inventory" },
@@ -36,7 +109,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
     { icon: "💡", title: "Suggestions", desc: "Smart meal tips", screen: "Suggestions" },
     { icon: "🤖", title: "FreshBot", desc: "AI pantry advisor", screen: "FreshBot" },
     { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
-    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "CameraTest" },
+    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "AddFood" },
     { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
   ];
 
@@ -46,14 +119,14 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
     { icon: "📊", title: "Analytics", desc: "View waste statistics", screen: "Analytics" },
     { icon: "🤖", title: "FreshBot", desc: "AI pantry advisor", screen: "FreshBot" },
     { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
-    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "CameraTest" },
+    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "AddFood" },
     { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
   ];
 
   const coordinatorCards: CardItem[] = [
     { icon: "📋", title: "Donations", desc: "Claim & manage food", screen: "DonationsList" },
     { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
-    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "CameraTest" },
+    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "AddFood" },
     { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
   ];
 
@@ -65,7 +138,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       : homeCards;
 
   return (
-    <View style={styles.outerContainer}>
+    <SafeAreaView style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       {/* Welcome card */}
       <View style={styles.welcomeCard}>
@@ -79,7 +152,48 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
       <Text style={styles.sectionTitle}>What would you like to do?</Text>
 
-      {/* 2-column feature grid */}
+      {/* Expiry Alerts card */}
+      {!alertLoading && (
+        <View style={[
+          styles.alertCard,
+          hasAlerts ? styles.alertCardWarn : styles.alertCardOk,
+        ]}>
+          <View style={styles.alertRow}>
+            <Text style={styles.alertIcon}>{hasAlerts ? "⚠️" : "✅"}</Text>
+            <View style={styles.alertBody}>
+              <Text style={[styles.alertTitle, { color: hasAlerts ? "#b45309" : "#166534" }]}>
+                {hasAlerts ? "Expiry Alert" : "Pantry All Clear"}
+              </Text>
+              {hasAlerts ? (
+                <Text style={styles.alertDesc}>
+                  {expiredCount > 0 && `${expiredCount} item${expiredCount !== 1 ? "s" : ""} already expired. `}
+                  {expiringSoonCount > 0 && `${expiringSoonCount} item${expiringSoonCount !== 1 ? "s" : ""} expiring within ${reminderWindowDays} day${reminderWindowDays !== 1 ? "s" : ""}.`}
+                </Text>
+              ) : (
+                <Text style={styles.alertDesc}>No items expiring in the next {reminderWindowDays} day{reminderWindowDays !== 1 ? "s" : ""}.</Text>
+              )}
+            </View>
+          </View>
+          {!isExpoGo && (
+            <TouchableOpacity
+              style={styles.testBtn}
+              onPress={scheduleTestNotification}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.testBtnText}>Test Alert</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Smart Summary card */}
+      {!alertLoading && wasteGoal !== "" && (
+        <View style={styles.smartCard}>
+          <Text style={styles.smartTitle}>✨ Smart Summary</Text>
+          <Text style={styles.smartTip}>{getSmartTip(wasteGoal, expiredCount, expiringSoonCount)}</Text>
+        </View>
+      )}
+
       <View style={styles.grid}>
         {cards.map((card) => (
           <TouchableOpacity
@@ -96,7 +210,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       </View>
     </ScrollView>
     <BottomNav navigation={navigation} active="HomeDashboard" role={role} userData={userData} />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -108,7 +222,6 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.background,
     padding: 20,
-    paddingTop: 52,
     paddingBottom: 40,
   },
   welcomeCard: {
@@ -184,5 +297,86 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     lineHeight: 17,
+  },
+
+  // Expiry alerts
+  alertCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  alertCardWarn: {
+    backgroundColor: "#fffbeb",
+    borderLeftWidth: 4,
+    borderLeftColor: "#f59e0b",
+  },
+  alertCardOk: {
+    backgroundColor: "#f0fdf4",
+    borderLeftWidth: 4,
+    borderLeftColor: "#22c55e",
+  },
+  alertRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  alertIcon: {
+    fontSize: 22,
+    marginTop: 1,
+  },
+  alertBody: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  alertDesc: {
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 18,
+  },
+  testBtn: {
+    alignSelf: "flex-end",
+    marginTop: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+  },
+  testBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  smartCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 18,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  smartTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.primary,
+    marginBottom: 6,
+  },
+  smartTip: {
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 20,
   },
 });
