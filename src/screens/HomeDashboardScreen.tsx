@@ -191,6 +191,11 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         <View style={styles.smartCard}>
           <Text style={styles.smartTitle}>✨ Smart Summary</Text>
           <Text style={styles.smartTip}>{getSmartTip(wasteGoal, expiredCount, expiringSoonCount)}</Text>
+          {wasteGoal === "donate_more" && expiringSoonCount > 0 && (
+            <Text style={[styles.smartTip, styles.smartTipDonate]}>
+              🤝 Donation opportunity: {expiringSoonCount} item{expiringSoonCount !== 1 ? "s" : ""} may be suitable for donation.
+            </Text>
+          )}
         </View>
       )}
 
@@ -378,5 +383,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.text,
     lineHeight: 20,
+  },
+  smartTipDonate: {
+    marginTop: 6,
+    color: "#c2410c",
+    fontWeight: "600",
   },
 });

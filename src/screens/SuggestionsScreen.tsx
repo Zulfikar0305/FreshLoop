@@ -5,6 +5,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import { doc, getDoc } from "firebase/firestore";
@@ -294,6 +295,7 @@ type UserPrefs = {
   householdSize: number;
   cookingSkill: string;
   wasteGoal: string;
+  reminderWindowDays: number;
 };
 
 const DEFAULT_PREFS: UserPrefs = {
@@ -301,6 +303,7 @@ const DEFAULT_PREFS: UserPrefs = {
   householdSize: 0,
   cookingSkill: "",
   wasteGoal: "",
+  reminderWindowDays: 3,
 };
 
 function getGoalCardTip(wasteGoal: string, urgent: boolean): string {
@@ -387,6 +390,7 @@ export default function SuggestionsScreen({ navigation, route }: any) {
             householdSize: typeof d.householdSize === "number" ? d.householdSize : 0,
             cookingSkill: d.cookingSkill ?? "",
             wasteGoal: d.wasteGoal ?? "",
+            reminderWindowDays: (d.reminderWindowDays === 1 || d.reminderWindowDays === 7) ? d.reminderWindowDays : 3,
           });
         }
         const active = all
@@ -436,6 +440,13 @@ export default function SuggestionsScreen({ navigation, route }: any) {
     return d >= 1 && d <= 7;
   });
   const recipes = generateRecipes(items);
+
+  const expiringSoonItems = items.filter((i) => {
+    const d = getDaysRemaining(i.expiryDate as Date);
+    return d >= 0 && d <= prefs.reminderWindowDays;
+  });
+  const showDonateCard =
+    prefs.wasteGoal === "donate_more" || expiringSoonItems.length >= 2;
 
   return (
     <View style={styles.outerContainer}>
@@ -502,6 +513,29 @@ export default function SuggestionsScreen({ navigation, route }: any) {
           <View style={styles.allGoodCard}>
             <Text style={styles.allGoodText}>✅ Your pantry looks healthy — nothing urgent this week!</Text>
           </View>
+        )}
+
+        {/* ══ Smart Donate Suggestion ══ */}
+        {showDonateCard && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>🤝 Smart Donate Suggestion</Text>
+            </View>
+            <View style={styles.donateCard}>
+              <Text style={styles.donateText}>
+                {expiringSoonItems.length > 0
+                  ? `You have ${expiringSoonItems.length} item${expiringSoonItems.length !== 1 ? "s" : ""} expiring within ${prefs.reminderWindowDays} day${prefs.reminderWindowDays !== 1 ? "s" : ""}. If you won't use them, consider donating before they go to waste.`
+                  : "Your waste goal is set to donate more. List surplus food so coordinators can collect it."}
+              </Text>
+              <TouchableOpacity
+                style={styles.donateButton}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("CreateDonation", { userData })}
+              >
+                <Text style={styles.donateButtonText}>Create Donation</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
 
         {/* ══ Section 2 — Recipe Ideas ══ */}
@@ -766,5 +800,36 @@ const styles = StyleSheet.create({
   tipCardGoal: {
     borderLeftColor: COLORS.primary,
     backgroundColor: "#f0fdfd",
+  },
+  donateCard: {
+    backgroundColor: "#fff7ed",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: "#f97316",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  donateText: {
+    fontSize: 14,
+    color: COLORS.text,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  donateButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#f97316",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  donateButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
