@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
   StyleSheet,
 } from "react-native";
 import { doc, getDoc } from "firebase/firestore";
@@ -374,6 +375,9 @@ export default function SuggestionsScreen({ navigation, route }: any) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<UserPrefs>(DEFAULT_PREFS);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [recipesOpen, setRecipesOpen] = useState(false);
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -457,141 +461,219 @@ export default function SuggestionsScreen({ navigation, route }: any) {
     <View style={styles.outerContainer}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <Text style={styles.pageTitle}>FreshBot</Text>
-        <Text style={styles.pageSubtitle}>
-          {prefs.wasteGoal === "save_money"
-            ? "💰 Personalised for saving money"
-            : prefs.wasteGoal === "donate_more"
-            ? "🤝 Personalised for donating more"
-            : prefs.wasteGoal === "reduce_waste"
-            ? "♻️ Personalised to reduce waste"
-            : "AI-style pantry assistant"}
-        </Text>
-
-        {/* ══ Section 1 — FreshBot Suggestions ══ */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>🤖 FreshBot Suggestions</Text>
-        </View>
-
-        {useToday.length > 0 && (
-          <>
-            <Text style={styles.groupLabel}>⚡ Use Today</Text>
-            {useToday.map((item) => {
-              const days = getDaysRemaining(item.expiryDate as Date);
-              return (
-                <View key={item.id} style={[styles.card, styles.urgentCard]}>
-                  <View style={styles.cardRow}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <View style={[styles.badge, { backgroundColor: getExpiryColor(days) }]}>
-                      <Text style={styles.badgeText}>{getExpiryLabel(days)}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.cardTip}>{getGoalCardTip(prefs.wasteGoal, true)}</Text>
-                </View>
-              );
-            })}
-          </>
-        )}
-
-        {useThisWeek.length > 0 && (
-          <>
-            <Text style={styles.groupLabel}>📅 Use This Week</Text>
-            {useThisWeek.map((item) => {
-              const days = getDaysRemaining(item.expiryDate as Date);
-              return (
-                <View key={item.id} style={styles.card}>
-                  <View style={styles.cardRow}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <View style={[styles.badge, { backgroundColor: getExpiryColor(days) }]}>
-                      <Text style={styles.badgeText}>{getExpiryLabel(days)}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.cardTip}>{getGoalCardTip(prefs.wasteGoal, false)}</Text>
-                </View>
-              );
-            })}
-          </>
-        )}
-
-        {useToday.length === 0 && useThisWeek.length === 0 && (
-          <View style={styles.allGoodCard}>
-            <Text style={styles.allGoodText}>✅ Your pantry looks healthy — nothing urgent this week!</Text>
-          </View>
-        )}
-
-        {/* ══ Smart Donate Suggestion ══ */}
-        {showDonateCard && (
-          <>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionHeader}>🤝 Smart Donate Suggestion</Text>
-            </View>
-            <View style={styles.donateCard}>
-              <Text style={styles.donateText}>
-                {expiringSoonItems.length > 0
-                  ? `You have ${expiringSoonItems.length} item${expiringSoonItems.length !== 1 ? "s" : ""} expiring within ${prefs.reminderWindowDays} day${prefs.reminderWindowDays !== 1 ? "s" : ""}. If you won't use them, consider donating before they go to waste.`
-                  : "Your waste goal is set to donate more. List surplus food so coordinators can collect it."}
-              </Text>
-              <TouchableOpacity
-                style={styles.donateButton}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate("CreateDonation", { userData })}
-              >
-                <Text style={styles.donateButtonText}>Create Donation</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* ══ Section 2 — Recipe Ideas ══ */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>🍽️ Recipe Ideas</Text>
-        </View>
-        <Text style={styles.sectionDesc}>Recipes based on ingredients currently in your pantry.</Text>
-
-        {recipes.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTip}>
-              No matches yet. Try adding ingredients like vegetables, eggs, rice, or pasta.
+        {/* ── AI Assistant Header ── */}
+        <View style={styles.aiHeader}>
+          <Text style={styles.aiHeaderIcon}>🤖</Text>
+          <View>
+            <Text style={styles.aiHeaderTitle}>FreshBot Suggestions for You</Text>
+            <Text style={styles.aiHeaderSub}>
+              {prefs.wasteGoal === "save_money"
+                ? "💰 Personalised for saving money"
+                : prefs.wasteGoal === "donate_more"
+                ? "🤝 Personalised for donating more"
+                : prefs.wasteGoal === "reduce_waste"
+                ? "♻️ Personalised to reduce waste"
+                : "Tap a card to explore your suggestions"}
             </Text>
           </View>
-        ) : (
-          recipes.map((recipe, idx) => {
-            const hNote = householdNote(prefs.householdSize);
-            const dNote = getDietaryNote(recipe, prefs.dietaryPreferences);
-            return (
-              <View key={idx} style={styles.recipeCard}>
-                <Text style={styles.recipeTitle}>{recipe.title}</Text>
-                <Text style={styles.recipeDesc}>{getSkillDesc(recipe, prefs.cookingSkill)}</Text>
-                {(hNote !== "" || dNote !== "") && (
-                  <Text style={styles.recipePersonalised}>
-                    {[hNote, dNote].filter(Boolean).join("  ·  ")}
-                  </Text>
-                )}
-                <Text style={styles.recipeIngLabel}>Pantry match:</Text>
-                <Text style={styles.recipeIngredients}>{recipe.ingredients.join(" · ")}</Text>
-              </View>
-            );
-          })
-        )}
-
-        {/* ══ Section 3 — Waste Prevention Tips ══ */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>💡 Waste Prevention Tips</Text>
         </View>
-        {(GOAL_TIPS[prefs.wasteGoal] ?? []).map((tip, idx) => (
-          <View key={`goal-${idx}`} style={[styles.tipCard, styles.tipCardGoal]}>
-            <Text style={styles.tipText}>{tip}</Text>
+
+        {/* ── Section Card: FreshBot Suggestions ── */}
+        <TouchableOpacity style={styles.sectionCard} activeOpacity={0.8} onPress={() => setSuggestionsOpen(true)}>
+          <View style={styles.sectionCardRow}>
+            <Text style={styles.sectionCardIcon}>⚡</Text>
+            <View style={styles.sectionCardBody}>
+              <Text style={styles.sectionCardTitle}>FreshBot Suggestions</Text>
+              <Text style={styles.sectionCardDesc}>
+                {useToday.length > 0
+                  ? `${useToday.length} item${useToday.length !== 1 ? "s" : ""} need using today · ${useThisWeek.length} this week`
+                  : useThisWeek.length > 0
+                  ? `${useThisWeek.length} item${useThisWeek.length !== 1 ? "s" : ""} to use this week`
+                  : "Your pantry looks healthy this week ✅"}
+              </Text>
+            </View>
+            <Text style={styles.sectionCardChevron}>›</Text>
           </View>
-        ))}
-        {WASTE_TIPS.map((tip, idx) => (
-          <View key={idx} style={styles.tipCard}>
-            <Text style={styles.tipText}>{tip}</Text>
+        </TouchableOpacity>
+
+        {/* ── Section Card: Recipe Ideas ── */}
+        <TouchableOpacity style={styles.sectionCard} activeOpacity={0.8} onPress={() => setRecipesOpen(true)}>
+          <View style={styles.sectionCardRow}>
+            <Text style={styles.sectionCardIcon}>🍽️</Text>
+            <View style={styles.sectionCardBody}>
+              <Text style={styles.sectionCardTitle}>Recipe Ideas</Text>
+              <Text style={styles.sectionCardDesc}>
+                {recipes.length > 0
+                  ? `${recipes.length} recipe${recipes.length !== 1 ? "s" : ""} matched from your pantry`
+                  : "Add more ingredients to unlock recipes"}
+              </Text>
+            </View>
+            <Text style={styles.sectionCardChevron}>›</Text>
           </View>
-        ))}
+        </TouchableOpacity>
+
+        {/* ── Section Card: Waste Prevention Tips ── */}
+        <TouchableOpacity style={styles.sectionCard} activeOpacity={0.8} onPress={() => setTipsOpen(true)}>
+          <View style={styles.sectionCardRow}>
+            <Text style={styles.sectionCardIcon}>💡</Text>
+            <View style={styles.sectionCardBody}>
+              <Text style={styles.sectionCardTitle}>Waste Prevention Tips</Text>
+              <Text style={styles.sectionCardDesc}>
+                {(GOAL_TIPS[prefs.wasteGoal] ?? []).length > 0
+                  ? `${(GOAL_TIPS[prefs.wasteGoal] ?? []).length} personalised + ${WASTE_TIPS.length} general tips`
+                  : `${WASTE_TIPS.length} tips to reduce food waste`}
+              </Text>
+            </View>
+            <Text style={styles.sectionCardChevron}>›</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* ── Smart Donate CTA (inline — not in modal) ── */}
+        {showDonateCard && (
+          <View style={styles.donateCard}>
+            <Text style={styles.donateText}>
+              {expiringSoonItems.length > 0
+                ? `You have ${expiringSoonItems.length} item${expiringSoonItems.length !== 1 ? "s" : ""} expiring within ${prefs.reminderWindowDays} day${prefs.reminderWindowDays !== 1 ? "s" : ""}. If you won't use them, consider donating before they go to waste.`
+                : "Your waste goal is set to donate more. List surplus food so coordinators can collect it."}
+            </Text>
+            <TouchableOpacity
+              style={styles.donateButton}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate("CreateDonation", { userData })}
+            >
+              <Text style={styles.donateButtonText}>Create Donation</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* ════ Modal: FreshBot Suggestions ════ */}
+      <Modal visible={suggestionsOpen} animationType="slide" transparent onRequestClose={() => setSuggestionsOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>⚡ FreshBot Suggestions</Text>
+              <TouchableOpacity onPress={() => setSuggestionsOpen(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {useToday.length > 0 && (
+                <>
+                  <Text style={styles.groupLabel}>⚡ Use Today</Text>
+                  {useToday.map((item) => {
+                    const days = getDaysRemaining(item.expiryDate as Date);
+                    return (
+                      <View key={item.id} style={[styles.card, styles.urgentCard]}>
+                        <View style={styles.cardRow}>
+                          <Text style={styles.itemName}>{item.name}</Text>
+                          <View style={[styles.badge, { backgroundColor: getExpiryColor(days) }]}>
+                            <Text style={styles.badgeText}>{getExpiryLabel(days)}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.cardTip}>{getGoalCardTip(prefs.wasteGoal, true)}</Text>
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+              {useThisWeek.length > 0 && (
+                <>
+                  <Text style={styles.groupLabel}>📅 Use This Week</Text>
+                  {useThisWeek.map((item) => {
+                    const days = getDaysRemaining(item.expiryDate as Date);
+                    return (
+                      <View key={item.id} style={styles.card}>
+                        <View style={styles.cardRow}>
+                          <Text style={styles.itemName}>{item.name}</Text>
+                          <View style={[styles.badge, { backgroundColor: getExpiryColor(days) }]}>
+                            <Text style={styles.badgeText}>{getExpiryLabel(days)}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.cardTip}>{getGoalCardTip(prefs.wasteGoal, false)}</Text>
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+              {useToday.length === 0 && useThisWeek.length === 0 && (
+                <View style={styles.allGoodCard}>
+                  <Text style={styles.allGoodText}>✅ Your pantry looks healthy — nothing urgent this week!</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ════ Modal: Recipe Ideas ════ */}
+      <Modal visible={recipesOpen} animationType="slide" transparent onRequestClose={() => setRecipesOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🍽️ Recipe Ideas</Text>
+              <TouchableOpacity onPress={() => setRecipesOpen(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>Recipes based on ingredients currently in your pantry.</Text>
+            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {recipes.length === 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardTip}>No matches yet. Try adding ingredients like vegetables, eggs, rice, or pasta.</Text>
+                </View>
+              ) : (
+                recipes.map((recipe, idx) => {
+                  const hNote = householdNote(prefs.householdSize);
+                  const dNote = getDietaryNote(recipe, prefs.dietaryPreferences);
+                  return (
+                    <View key={idx} style={styles.recipeCard}>
+                      <Text style={styles.recipeTitle}>{recipe.title}</Text>
+                      <Text style={styles.recipeDesc}>{getSkillDesc(recipe, prefs.cookingSkill)}</Text>
+                      {(hNote !== "" || dNote !== "") && (
+                        <Text style={styles.recipePersonalised}>
+                          {[hNote, dNote].filter(Boolean).join("  ·  ")}
+                        </Text>
+                      )}
+                      <Text style={styles.recipeIngLabel}>Pantry match:</Text>
+                      <Text style={styles.recipeIngredients}>{recipe.ingredients.join(" · ")}</Text>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ════ Modal: Waste Prevention Tips ════ */}
+      <Modal visible={tipsOpen} animationType="slide" transparent onRequestClose={() => setTipsOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>💡 Waste Prevention Tips</Text>
+              <TouchableOpacity onPress={() => setTipsOpen(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {(GOAL_TIPS[prefs.wasteGoal] ?? []).map((tip, idx) => (
+                <View key={`goal-${idx}`} style={[styles.tipCard, styles.tipCardGoal]}>
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))}
+              {WASTE_TIPS.map((tip, idx) => (
+                <View key={idx} style={styles.tipCard}>
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       <BottomNav navigation={navigation} active="Suggestions" role={role} userData={userData} />
     </View>
   );
@@ -636,7 +718,7 @@ function getStyles(c: ThemeColors) {
     lineHeight: 22,
   },
 
-  // Page header
+  // Page header (kept for empty/loading states)
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
@@ -649,24 +731,129 @@ function getStyles(c: ThemeColors) {
     marginBottom: 28,
   },
 
-  // Section headings
-  sectionHeaderRow: {
+  // AI Assistant header
+  aiHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: c.card,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 20,
     borderLeftWidth: 4,
     borderLeftColor: c.primary,
-    paddingLeft: 10,
-    marginTop: 8,
-    marginBottom: 14,
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  sectionHeader: {
+  aiHeaderIcon: {
+    fontSize: 36,
+  },
+  aiHeaderTitle: {
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: "800",
     color: c.text,
+    marginBottom: 3,
   },
-  sectionDesc: {
+  aiHeaderSub: {
     fontSize: 13,
     color: c.textMuted,
-    marginTop: -10,
-    marginBottom: 14,
+    lineHeight: 18,
+  },
+
+  // Clickable section summary cards
+  sectionCard: {
+    backgroundColor: c.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  sectionCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  sectionCardIcon: {
+    fontSize: 28,
+  },
+  sectionCardBody: {
+    flex: 1,
+  },
+  sectionCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: c.text,
+    marginBottom: 3,
+  },
+  sectionCardDesc: {
+    fontSize: 13,
+    color: c.textMuted,
+    lineHeight: 18,
+  },
+  sectionCardChevron: {
+    fontSize: 22,
+    color: c.primary,
+    fontWeight: "700",
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: c.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "88%",
+    paddingTop: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: c.text,
+  },
+  closeButton: {
+    backgroundColor: c.surface,
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButtonText: {
+    fontSize: 15,
+    color: c.textMuted,
+    fontWeight: "700",
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: c.textMuted,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  modalContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
   groupLabel: {
     fontSize: 13,

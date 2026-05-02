@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 
 type Role = "home" | "business" | "coordinator";
 
@@ -14,14 +15,14 @@ const HOME_TABS: Tab[] = [
   { key: "HomeDashboard", label: "Home",     icon: "🏠", screen: "HomeDashboard" },
   { key: "Inventory",     label: "Pantry",   icon: "📦", screen: "Inventory" },
   { key: "Analytics",     label: "Analytics",icon: "📊", screen: "Analytics" },
-  { key: "FreshBot",      label: "FreshBot", icon: "🤖", screen: "FreshBot" },
+  { key: "Suggestions",   label: "FreshBot", icon: "🤖", screen: "Suggestions" },
   { key: "Profile",       label: "Profile",  icon: "👤", screen: "Profile" },
 ];
 
 const BUSINESS_TABS: Tab[] = [
   { key: "HomeDashboard", label: "Home",      icon: "🏠", screen: "HomeDashboard" },
   { key: "DonationsList", label: "Donations", icon: "🎁", screen: "DonationsList" },
-  { key: "FreshBot",      label: "FreshBot",  icon: "🤖", screen: "FreshBot" },
+  { key: "Analytics",     label: "Analytics", icon: "📊", screen: "Analytics" },
   { key: "Profile",       label: "Profile",   icon: "👤", screen: "Profile" },
 ];
 
@@ -45,6 +46,8 @@ type BottomNavProps = {
 };
 
 export default function BottomNav({ navigation, active, role = "home", userData }: BottomNavProps) {
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
   const tabs = getTabsForRole(role);
 
   const handlePress = (tab: Tab) => {
@@ -75,12 +78,13 @@ export default function BottomNav({ navigation, active, role = "home", userData 
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: c.border,
     paddingTop: 8,
     paddingBottom: Platform.OS === "ios" ? 24 : 10,
     shadowColor: "#000",
@@ -103,10 +107,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: "500",
-    color: COLORS.textMuted,
+    color: c.textMuted,
   },
   labelActive: {
-    color: COLORS.primary,
+    color: c.primary,
     fontWeight: "700",
   },
   activeDot: {
@@ -115,6 +119,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
 });
+}

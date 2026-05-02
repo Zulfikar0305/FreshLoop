@@ -9,19 +9,26 @@ import {
   StyleSheet,
   Image,
 } from "react-native";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 
 type Role = "home" | "business" | "coordinator";
 
 export default function RegisterScreen({ navigation }: any) {
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<Role>("home");
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
 
   const handleRegister = async () => {
     if (!fullName.trim()) {
@@ -32,8 +39,12 @@ export default function RegisterScreen({ navigation }: any) {
       Alert.alert("Validation Error", "Email cannot be empty.");
       return;
     }
-    if (password.length < 6) {
-      Alert.alert("Validation Error", "Password must be at least 6 characters.");
+    if (!EMAIL_REGEX.test(email.trim())) {
+      Alert.alert("Validation Error", "Please enter a valid email address.");
+      return;
+    }
+    if (!PASSWORD_REGEX.test(password)) {
+      Alert.alert("Validation Error", "Password must be at least 8 characters and include at least one letter and one number.");
       return;
     }
 
@@ -45,6 +56,7 @@ export default function RegisterScreen({ navigation }: any) {
       );
 
       const user = userCredential.user;
+      await sendEmailVerification(user);
 
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
@@ -60,20 +72,11 @@ export default function RegisterScreen({ navigation }: any) {
         analyticsConsent: false,
       });
 
-      const userData = {
-        uid: user.uid,
-        email: user.email,
-        role,
-        verificationStatus: "active",
-        fullName: fullName.trim(),
-        householdSize: 0,
-        dietaryPreferences: [],
-        kitchenEquipment: [],
-        locationConsent: false,
-        analyticsConsent: false,
-      };
-
-      navigation.reset({ index: 0, routes: [{ name: "HomeDashboard", params: { userData } }] });
+      Alert.alert(
+        "Account Created!",
+        "Please verify your email for full access. Check your inbox for a verification link.",
+        [{ text: "OK", onPress: () => navigation.navigate("Login") }]
+      );
     } catch (error: any) {
       Alert.alert("Registration Error", error.message);
     }
@@ -110,9 +113,10 @@ export default function RegisterScreen({ navigation }: any) {
         />
 
         <Text style={styles.inputLabel}>Password</Text>
+        <Text style={styles.passwordHint}>Min. 8 characters, at least 1 letter and 1 number.</Text>
         <View style={styles.passwordRow}>
           <TextInput
-            placeholder="Min. 6 characters"
+            placeholder="Min. 8 chars, 1 letter, 1 number"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -163,9 +167,10 @@ export default function RegisterScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 24,
     paddingTop: 60,
     paddingBottom: 40,
@@ -184,15 +189,15 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: "800",
-    color: COLORS.primary,
+    color: c.primary,
   },
   tagline: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginTop: 4,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: 24,
     shadowColor: "#000",
@@ -204,16 +209,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.text,
+    color: c.text,
+    marginBottom: 6,
+  },
+  passwordHint: {
+    fontSize: 11,
+    color: c.textMuted,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
     marginBottom: 16,
-    color: COLORS.text,
+    color: c.text,
   },
   passwordRow: {
     flexDirection: "row",
@@ -229,7 +239,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   toggleText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -241,27 +251,27 @@ const styles = StyleSheet.create({
   roleButton: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: c.border,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
   },
   roleButtonActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: "#E0F4F4",
+    borderColor: c.primary,
+    backgroundColor: c.surface,
   },
   roleText: {
-    color: COLORS.textMuted,
+    color: c.textMuted,
     fontSize: 12,
     fontWeight: "500",
   },
   roleTextActive: {
-    color: COLORS.primary,
+    color: c.primary,
     fontWeight: "700",
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -273,3 +283,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}

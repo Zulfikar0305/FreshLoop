@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image } from "react-native";
+import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
@@ -14,6 +14,7 @@ type CardItem = {
   title: string;
   desc: string;
   screen: string;
+  params?: Record<string, unknown>;
 };
 
 function getSmartTip(wasteGoal: string, expired: number, soon: number): string {
@@ -57,9 +58,11 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
   const [expiredCount, setExpiredCount] = useState(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState(0);
+  const [noDateCount, setNoDateCount] = useState(0);
   const [alertLoading, setAlertLoading] = useState(true);
   const [wasteGoal, setWasteGoal] = useState("");
   const [reminderWindowDays, setReminderWindowDays] = useState(3);
+  const [riskDismissed, setRiskDismissed] = useState(false);
 
   useEffect(() => {
     const loadAlerts = async () => {
@@ -86,8 +89,10 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         windowDate.setDate(today.getDate() + window);
         let expired = 0;
         let soon = 0;
+        let noDate = 0;
         for (const item of items) {
-          if (item.status !== "active" || !item.expiryDate) continue;
+          if (item.status !== "active") continue;
+          if (!item.expiryDate) { noDate += 1; continue; }
           const expiry = new Date(item.expiryDate);
           expiry.setHours(0, 0, 0, 0);
           if (expiry < today) expired += 1;
@@ -95,6 +100,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         }
         setExpiredCount(expired);
         setExpiringSoonCount(soon);
+        setNoDateCount(noDate);
       } catch {
         // non-critical — dashboard still loads
       } finally {
@@ -105,33 +111,32 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
   }, []);
 
   const hasAlerts = expiredCount > 0 || expiringSoonCount > 0;
+  const showHighRiskModal = !riskDismissed && (expiredCount >= 3 || (expiredCount + expiringSoonCount) >= 5);
+  const showDonateCard = role === "home" && expiringSoonCount > 0;
 
   const homeCards: CardItem[] = [
-    { icon: "🍎", title: "Add Food", desc: "Track new pantry items", screen: "AddFood" },
-    { icon: "📦", title: "Inventory", desc: "Browse what you have", screen: "Inventory" },
-    { icon: "📊", title: "Analytics", desc: "View waste statistics", screen: "Analytics" },
-    { icon: "💡", title: "Suggestions", desc: "Smart meal tips", screen: "Suggestions" },
-    { icon: "🤖", title: "FreshBot", desc: "AI pantry advisor", screen: "FreshBot" },
-    { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
-    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "AddFood" },
-    { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
+    { icon: "🍎", title: "Add Food",         desc: "Track new pantry items",          screen: "AddFood" },
+    { icon: "📦", title: "Inventory",         desc: "Browse what you have",            screen: "Inventory" },
+    { icon: "📊", title: "Analytics",         desc: "View waste statistics",          screen: "Analytics" },
+    { icon: "💡", title: "Suggestions",       desc: "Smart meal tips",                screen: "Suggestions" },
+    { icon: "🤖", title: "FreshBot",          desc: "AI pantry advisor",             screen: "Suggestions" },
+    { icon: "📋", title: "Scan / Bulk Add",   desc: "Add multiple items at once",    screen: "AddFood", params: { mode: "bulk" } },
+    { icon: "👤", title: "Profile",           desc: "Edit your details",             screen: "Profile" },
+    { icon: "🚨", title: "Report",            desc: "Flag an issue",                screen: "Report" },
   ];
 
   const businessCards: CardItem[] = [
-    { icon: "🎁", title: "Donate Food", desc: "List surplus food", screen: "CreateDonation" },
-    { icon: "📋", title: "Donations", desc: "View all listings", screen: "DonationsList" },
-    { icon: "📊", title: "Analytics", desc: "View waste statistics", screen: "Analytics" },
-    { icon: "🤖", title: "FreshBot", desc: "AI pantry advisor", screen: "FreshBot" },
-    { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
-    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "AddFood" },
-    { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
+    { icon: "🎁", title: "Donate Food",  desc: "List surplus food",          screen: "CreateDonation" },
+    { icon: "📋", title: "Donations",    desc: "View all listings",          screen: "DonationsList" },
+    { icon: "📊", title: "Analytics",    desc: "View waste statistics",      screen: "Analytics" },
+    { icon: "👤", title: "Profile",      desc: "Edit your details",          screen: "Profile" },
+    { icon: "🚨", title: "Report",       desc: "Flag an issue",              screen: "Report" },
   ];
 
   const coordinatorCards: CardItem[] = [
-    { icon: "📋", title: "Donations", desc: "Claim & manage food", screen: "DonationsList" },
-    { icon: "👤", title: "Profile", desc: "Edit your details", screen: "Profile" },
-    { icon: "📷", title: "Camera", desc: "Scan food items", screen: "AddFood" },
-    { icon: "🚨", title: "Report", desc: "Flag an issue", screen: "Report" },
+    { icon: "📋", title: "Donations",  desc: "Claim & manage food",  screen: "DonationsList" },
+    { icon: "👤", title: "Profile",    desc: "Edit your details",    screen: "Profile" },
+    { icon: "🚨", title: "Report",     desc: "Flag an issue",        screen: "Report" },
   ];
 
   const cards =
@@ -143,6 +148,32 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.outerContainer}>
+    {/* ══ High Waste Risk Modal ══ */}
+    <Modal
+      visible={showHighRiskModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setRiskDismissed(true)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalIcon}>⚠️</Text>
+          <Text style={styles.modalTitle}>High Waste Risk</Text>
+          <Text style={styles.modalBody}>
+            You have items close to expiry. Use, freeze, or donate them today to avoid waste.
+          </Text>
+          <TouchableOpacity
+            style={styles.modalAction}
+            onPress={() => { setRiskDismissed(true); navigation.navigate("Suggestions", { userData }); }}
+          >
+            <Text style={styles.modalActionText}>View FreshBot Suggestions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.modalDismiss} onPress={() => setRiskDismissed(true)}>
+            <Text style={styles.modalDismissText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       {/* Welcome card */}
       <View style={styles.welcomeCard}>
@@ -174,7 +205,11 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
                   {expiringSoonCount > 0 && `${expiringSoonCount} item${expiringSoonCount !== 1 ? "s" : ""} expiring within ${reminderWindowDays} day${reminderWindowDays !== 1 ? "s" : ""}.`}
                 </Text>
               ) : (
-                <Text style={styles.alertDesc}>No items expiring in the next {reminderWindowDays} day{reminderWindowDays !== 1 ? "s" : ""}.</Text>
+                <Text style={styles.alertDesc}>
+                  {noDateCount > 0
+                    ? `You have ${noDateCount} active item${noDateCount !== 1 ? "s" : ""} with no expiry date set.`
+                    : `No items expiring in the next ${reminderWindowDays} day${reminderWindowDays !== 1 ? "s" : ""}.`}
+                </Text>
               )}
             </View>
           </View>
@@ -203,13 +238,30 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         </View>
       )}
 
+      {/* Donate Expiring Food card — home users only, when items are expiring soon */}
+      {showDonateCard && (
+        <TouchableOpacity
+          style={styles.donateCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate("CreateDonation", { userData })}
+        >
+          <Text style={styles.donateIcon}>🤝</Text>
+          <View style={styles.donateBody}>
+            <Text style={styles.donateTitle}>Donate Expiring Food</Text>
+            <Text style={styles.donateDesc}>
+              {expiringSoonCount} item{expiringSoonCount !== 1 ? "s" : ""} expiring soon. List them for donation instead of wasting.
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.grid}>
         {cards.map((card) => (
           <TouchableOpacity
             key={`${card.title}-${card.screen}`}
             style={styles.card}
             activeOpacity={0.75}
-            onPress={() => navigation.navigate(card.screen, { userData })}
+            onPress={() => navigation.navigate(card.screen, { userData, ...(card.params ?? {}) })}
           >
             <Text style={styles.cardIcon}>{card.icon}</Text>
             <Text style={styles.cardTitle}>{card.title}</Text>
@@ -393,6 +445,99 @@ function getStyles(c: ThemeColors) {
     marginTop: 6,
     color: c.accent,
     fontWeight: "600",
+  },
+  // ── Donate expiring food card ──
+  donateCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: c.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: c.success,
+    shadowColor: c.success,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  donateIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  donateBody: {
+    flex: 1,
+  },
+  donateTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: c.text,
+    marginBottom: 3,
+  },
+  donateDesc: {
+    fontSize: 12,
+    color: c.textMuted,
+    lineHeight: 17,
+  },
+  // ── High waste risk modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: c.card,
+    borderRadius: 20,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: c.danger,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  modalBody: {
+    fontSize: 14,
+    color: c.text,
+    lineHeight: 22,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalAction: {
+    backgroundColor: c.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  modalActionText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  modalDismiss: {
+    paddingVertical: 8,
+  },
+  modalDismissText: {
+    color: c.textMuted,
+    fontSize: 14,
   },
 });
 }

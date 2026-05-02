@@ -75,6 +75,7 @@ export default function DonationsListScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"available" | "claimed" | "completed">("available");
 
   const isCoordinator = role === "coordinator";
 
@@ -199,102 +200,109 @@ export default function DonationsListScreen({ navigation, route }: any) {
     );
   }
 
+  const TABS: { key: "available" | "claimed" | "completed"; label: string }[] = [
+    { key: "available", label: `Available (${donations.length})` },
+    { key: "claimed",   label: `Claimed (${claimedDonations.length})` },
+    { key: "completed", label: `Done (${completedDonations.length})` },
+  ];
+
   return (
     <View style={styles.outerContainer}>
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Donations</Text>
 
-      {/* ══ Available ══ */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionHeader}>📦 Available Donations</Text>
-        <View style={[styles.statusBadge, styles.badgeAvailable]}>
-          <Text style={styles.badgeText}>{donations.length}</Text>
-        </View>
+      {/* Segmented Tabs */}
+      <View style={styles.tabRow}>
+        {TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+            onPress={() => setActiveTab(tab.key)}
+          >
+            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {donations.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>🎉</Text>
-          <Text style={styles.emptyTitle}>All clear!</Text>
-          <Text style={styles.emptyDesc}>No donations available right now. Check back soon.</Text>
-        </View>
-      ) : (
-        donations.map((item) => {
-          const priority = getPriorityLevel(item);
-          return (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.cardTopRow}>
-              <Text style={styles.foodName}>{item.foodName}</Text>
-              <View style={styles.cardBadges}>
-                <View style={[styles.priorityBadge, { backgroundColor: PRIORITY_COLOR[priority] }]}>
-                  <Text style={styles.priorityBadgeText}>{PRIORITY_EMOJI[priority]} {priority}</Text>
-                </View>
-                <View style={[styles.statusBadge, styles.badgeAvailable]}>
-                  <Text style={styles.badgeText}>Available</Text>
-                </View>
-              </View>
-            </View>
-            <Text style={styles.detail}>Qty: {item.quantity}</Text>
-            {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
-            {item.latitude != null && item.longitude != null ? (
-              <>
-                <Text style={styles.location}>📍 {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</Text>
-                <TouchableOpacity style={styles.mapsButton} onPress={() => handleOpenMaps(item.latitude!, item.longitude!)}>
-                  <Text style={styles.mapsButtonText}>Open in Maps</Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
-            {isCoordinator && (
-              <TouchableOpacity
-                style={[styles.claimButton, claimingId === item.id && styles.claimButtonDisabled]}
-                onPress={() => handleClaim(item.id)}
-                disabled={claimingId !== null}
-              >
-                <Text style={styles.claimButtonText}>
-                  {claimingId === item.id ? "Claiming..." : "Claim Donation"}
-                </Text>
-              </TouchableOpacity>
-            )}
+      {/* ══ Available ══ */}
+      {activeTab === "available" && (
+        donations.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>🎉</Text>
+            <Text style={styles.emptyTitle}>All clear!</Text>
+            <Text style={styles.emptyDesc}>No donations available right now. Check back soon.</Text>
           </View>
-          );
-        })
-      )}
-
-      {/* ══ Claimed (coordinator only) ══ */}
-      {isCoordinator && (
-        <>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>🤝 Claimed by You</Text>
-            <View style={[styles.statusBadge, styles.badgeClaimed]}>
-              <Text style={styles.badgeText}>{claimedDonations.length}</Text>
-            </View>
-          </View>
-
-          {claimedDonations.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>👀</Text>
-              <Text style={styles.emptyTitle}>Nothing claimed yet</Text>
-              <Text style={styles.emptyDesc}>Claim an available donation above to start coordinating a pickup.</Text>
-            </View>
-          ) : (
-            claimedDonations.map((item) => (
-              <View key={item.id} style={[styles.card, styles.cardClaimed]}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.foodName}>{item.foodName}</Text>
-                  <View style={[styles.statusBadge, styles.badgeClaimed]}>
-                    <Text style={styles.badgeText}>Claimed</Text>
+        ) : (
+          donations.map((item) => {
+            const priority = getPriorityLevel(item);
+            return (
+            <View key={item.id} style={styles.card}>
+              <View style={styles.cardTopRow}>
+                <Text style={styles.foodName}>{item.foodName}</Text>
+                <View style={styles.cardBadges}>
+                  <View style={[styles.priorityBadge, { backgroundColor: PRIORITY_COLOR[priority] }]}>
+                    <Text style={styles.priorityBadgeText}>{PRIORITY_EMOJI[priority]} {priority}</Text>
+                  </View>
+                  <View style={[styles.statusBadge, styles.badgeAvailable]}>
+                    <Text style={styles.badgeText}>Available</Text>
                   </View>
                 </View>
-                <Text style={styles.detail}>Qty: {item.quantity}</Text>
-                {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
-                {item.latitude != null && item.longitude != null ? (
-                  <>
-                    <Text style={styles.location}>📍 {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</Text>
-                    <TouchableOpacity style={styles.mapsButton} onPress={() => handleOpenMaps(item.latitude!, item.longitude!)}>
-                      <Text style={styles.mapsButtonText}>Open in Maps</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : null}
+              </View>
+              <Text style={styles.detail}>Qty: {item.quantity}</Text>
+              {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
+              {item.latitude != null && item.longitude != null ? (
+                <>
+                  <Text style={styles.location}>📍 {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</Text>
+                  <TouchableOpacity style={styles.mapsButton} onPress={() => handleOpenMaps(item.latitude!, item.longitude!)}>
+                    <Text style={styles.mapsButtonText}>Open in Maps</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {isCoordinator && (
+                <TouchableOpacity
+                  style={[styles.claimButton, claimingId === item.id && styles.claimButtonDisabled]}
+                  onPress={() => handleClaim(item.id)}
+                  disabled={claimingId !== null}
+                >
+                  <Text style={styles.claimButtonText}>
+                    {claimingId === item.id ? "Claiming..." : "Claim Donation"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            );
+          })
+        )
+      )}
+
+      {/* ══ Claimed ══ */}
+      {activeTab === "claimed" && (
+        claimedDonations.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>👀</Text>
+            <Text style={styles.emptyTitle}>Nothing claimed yet</Text>
+            <Text style={styles.emptyDesc}>Claim an available donation to start coordinating a pickup.</Text>
+          </View>
+        ) : (
+          claimedDonations.map((item) => (
+            <View key={item.id} style={[styles.card, styles.cardClaimed]}>
+              <View style={styles.cardTopRow}>
+                <Text style={styles.foodName}>{item.foodName}</Text>
+                <View style={[styles.statusBadge, styles.badgeClaimed]}>
+                  <Text style={styles.badgeText}>Claimed</Text>
+                </View>
+              </View>
+              <Text style={styles.detail}>Qty: {item.quantity}</Text>
+              {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
+              {item.latitude != null && item.longitude != null ? (
+                <>
+                  <Text style={styles.location}>📍 {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</Text>
+                  <TouchableOpacity style={styles.mapsButton} onPress={() => handleOpenMaps(item.latitude!, item.longitude!)}>
+                    <Text style={styles.mapsButtonText}>Open in Maps</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {isCoordinator && (
                 <TouchableOpacity
                   style={[styles.confirmButton, confirmingId === item.id && styles.confirmButtonDisabled]}
                   onPress={() => handleConfirmPickup(item.id)}
@@ -304,39 +312,34 @@ export default function DonationsListScreen({ navigation, route }: any) {
                     {confirmingId === item.id ? "Confirming..." : "Confirm Pickup"}
                   </Text>
                 </TouchableOpacity>
-              </View>
-            ))
-          )}
-
-          {/* ══ Completed ══ */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>✅ Completed</Text>
-            <View style={[styles.statusBadge, styles.badgeCompleted]}>
-              <Text style={styles.badgeText}>{completedDonations.length}</Text>
+              )}
             </View>
+          ))
+        )
+      )}
+
+      {/* ══ Completed ══ */}
+      {activeTab === "completed" && (
+        completedDonations.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>🌟</Text>
+            <Text style={styles.emptyTitle}>No completed donations yet</Text>
+            <Text style={styles.emptyDesc}>Completed pickups will appear here.</Text>
           </View>
-
-          {completedDonations.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>🌟</Text>
-              <Text style={styles.emptyTitle}>No completed donations yet</Text>
-              <Text style={styles.emptyDesc}>Completed pickups will appear here.</Text>
-            </View>
-          ) : (
-            completedDonations.map((item) => (
-              <View key={item.id} style={[styles.card, styles.cardCompleted]}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.foodName}>{item.foodName}</Text>
-                  <View style={[styles.statusBadge, styles.badgeCompleted]}>
-                    <Text style={styles.badgeText}>Completed</Text>
-                  </View>
+        ) : (
+          completedDonations.map((item) => (
+            <View key={item.id} style={[styles.card, styles.cardCompleted]}>
+              <View style={styles.cardTopRow}>
+                <Text style={styles.foodName}>{item.foodName}</Text>
+                <View style={[styles.statusBadge, styles.badgeCompleted]}>
+                  <Text style={styles.badgeText}>Completed</Text>
                 </View>
-                <Text style={styles.detail}>Qty: {item.quantity}</Text>
-                {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
               </View>
-            ))
-          )}
-        </>
+              <Text style={styles.detail}>Qty: {item.quantity}</Text>
+              {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
+            </View>
+          ))
+        )
       )}
 
       <View style={{ height: 20 }} />
@@ -370,6 +373,31 @@ function getStyles(c: ThemeColors) {
     marginBottom: 20,
   },
   // Section headings
+  tabRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: c.border,
+    borderRadius: 20,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  tabActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: c.textMuted,
+  },
+  tabTextActive: {
+    color: "#fff",
+  },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",

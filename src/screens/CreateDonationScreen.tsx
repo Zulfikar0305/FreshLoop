@@ -11,20 +11,41 @@ import {
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import * as Location from "expo-location";
 import { auth, db } from "../firebase/firebaseConfig";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
+
+const DONATION_UNIT_OPTIONS = ["item", "pack", "kg", "L", "box", "pallet"] as const;
+type DonationUnit = typeof DONATION_UNIT_OPTIONS[number];
 
 type Coords = { latitude: number; longitude: number } | null;
 
 export default function CreateDonationScreen({ navigation, route }: any) {
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const userData = route?.params?.userData ?? null;
+  const role: "home" | "business" | "coordinator" =
+    userData?.role === "business" ? "business" :
+    userData?.role === "coordinator" ? "coordinator" : "home";
+  const isBusiness = role === "business";
+
   const [foodName, setFoodName] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState<DonationUnit | "">("item");
   const [description, setDescription] = useState("");
+  const [pickupInstructions, setPickupInstructions] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [coords, setCoords] = useState<Coords>(null);
   const [locating, setLocating] = useState(false);
 
   const handleUseLocation = async () => {
+    if (userData?.locationConsent !== true) {
+      Alert.alert(
+        "Location Consent Required",
+        "Enable location consent in your Profile settings to use GPS features."
+      );
+      return;
+    }
     setLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -68,8 +89,11 @@ export default function CreateDonationScreen({ navigation, route }: any) {
         userId: currentUser.uid,
         foodName: foodName.trim(),
         quantity: parsedQuantity,
+        unit: unit || "item",
         description: description.trim(),
+        pickupInstructions: pickupInstructions.trim(),
         status: "available",
+        role,
         createdAt: serverTimestamp(),
         ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
       });
@@ -88,17 +112,19 @@ export default function CreateDonationScreen({ navigation, route }: any) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Create Donation</Text>
+      <Text style={styles.title}>{isBusiness ? "List Surplus Food" : "Create Donation"}</Text>
       <Text style={styles.subtitle}>
-        List surplus food so NPO coordinators can claim and distribute it to those in need.
+        {isBusiness
+          ? "List your surplus stock so NPO coordinators can claim and distribute it to those in need."
+          : "List surplus food so NPO coordinators can claim and distribute it to those in need."}
       </Text>
 
       <Text style={styles.label}>Food Name *</Text>
-      <Text style={styles.hint}>What food are you donating? Be specific (e.g. "Canned chickpeas", "Bread loaves").</Text>
+      <Text style={styles.hint}>{isBusiness ? "Be specific (e.g. \"Canned chickpeas x 24\", \"Bread loaves\")." : "What food are you donating? Be specific."}</Text>
       <TextInput
         value={foodName}
         onChangeText={setFoodName}
-        placeholder="e.g. Canned beans"
+        placeholder={isBusiness ? "e.g. Canned beans — case of 24" : "e.g. Canned beans"}
         placeholderTextColor="#aaa"
         style={styles.input}
       />
@@ -107,33 +133,66 @@ export default function CreateDonationScreen({ navigation, route }: any) {
       <Text style={styles.hint}>Number of items, packs, or kg available.</Text>
       <TextInput
         value={quantity}
-        onChangeText={setQuantity}
+        onChangeText={(v) => setQuantity(v.replace(/[^0-9.]/g, ""))}
         placeholder="e.g. 5"
         keyboardType="numeric"
         placeholderTextColor="#aaa"
         style={styles.input}
       />
 
+      <Text style={styles.label}>Unit</Text>
+      <View style={styles.chipRow}>
+        {DONATION_UNIT_OPTIONS.map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            style={[styles.chip, unit === opt && styles.chipActive]}
+            onPress={() => setUnit(opt)}
+          >
+            <Text style={[styles.chipText, unit === opt && styles.chipTextActive]}>{opt}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <Text style={styles.label}>Description</Text>
-      <Text style={styles.hint}>Optional — include condition, best-before date, or collection instructions.</Text>
+      <Text style={styles.hint}>Optional — include condition, best-before date, or dietary info.</Text>
       <TextInput
         value={description}
         onChangeText={setDescription}
-        placeholder="e.g. Best before 10 May. Collect from front desk."
+        placeholder="e.g. Best before 10 May. All tins intact."
         placeholderTextColor="#aaa"
         multiline
         numberOfLines={3}
         style={[styles.input, styles.multiline]}
       />
 
+      {isBusiness && (
+        <>
+          <Text style={styles.label}>Pickup Instructions</Text>
+          <Text style={styles.hint}>Where and how can the coordinator collect? Include times if relevant.</Text>
+          <TextInput
+            value={pickupInstructions}
+            onChangeText={setPickupInstructions}
+            placeholder="e.g. Collect from back entrance, weekdays 8am–4pm. Ask for Manager."
+            placeholderTextColor="#aaa"
+            multiline
+            numberOfLines={3}
+            style={[styles.input, styles.multiline]}
+          />
+        </>
+      )}
+
       <Text style={styles.label}>Pickup Location</Text>
-      <Text style={styles.hint}>Optional but recommended — helps coordinators plan collection routes.</Text>
+      <Text style={styles.hint}>
+        {userData?.locationConsent === true
+          ? "Recommended — helps coordinators plan collection routes."
+          : "Enable location in Profile to use GPS features."}
+      </Text>
       <TouchableOpacity
-        style={[styles.locationButton, locating && styles.locationButtonDisabled]}
+        style={[styles.locationButton, (locating || userData?.locationConsent !== true) && styles.locationButtonDisabled]}
         onPress={handleUseLocation}
         disabled={locating || submitting}
       >
-        <Text style={styles.locationButtonText}>
+        <Text style={[styles.locationButtonText, userData?.locationConsent !== true && styles.locationButtonTextDisabled]}>
           {locating ? "Getting location..." : coords ? `📍 Location set (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})` : "📍 Use My Current Location"}
         </Text>
       </TouchableOpacity>
@@ -144,49 +203,50 @@ export default function CreateDonationScreen({ navigation, route }: any) {
         disabled={submitting}
       >
         <Text style={styles.primaryButtonText}>
-          {submitting ? "Submitting..." : "List Donation"}
+          {submitting ? "Submitting..." : (isBusiness ? "List Surplus Food" : "List Donation")}
         </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 20,
     paddingBottom: 48,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     lineHeight: 20,
     marginBottom: 24,
   },
   hint: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginBottom: 6,
     lineHeight: 17,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -198,31 +258,59 @@ const styles = StyleSheet.create({
     height: 90,
     textAlignVertical: "top",
   },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    borderWidth: 1.5,
+    borderColor: c.border,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  chipActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: c.textMuted,
+  },
+  chipTextActive: {
+    color: "#fff",
+  },
   locationButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: c.primary,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     marginBottom: 16,
   },
   locationButtonDisabled: {
-    borderColor: "#80CECE",
+    borderColor: c.border,
   },
   locationButtonText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 15,
     fontWeight: "600",
   },
+  locationButtonTextDisabled: {
+    color: c.textMuted,
+  },
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 8,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#80CECE",
+    backgroundColor: c.primaryDark,
   },
   primaryButtonText: {
     color: "#fff",
@@ -230,3 +318,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+}

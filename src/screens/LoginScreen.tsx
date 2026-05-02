@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { Text, View, TextInput, TouchableOpacity, Alert, StyleSheet, Image } from "react-native";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, onAuthStateChanged } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { auth, db } from "../firebase/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
-import {
-  checkBiometricSupport,
-  authenticateWithBiometrics,
-} from "../services/authService";
-import { COLORS } from "../constants/theme";
+import { checkBiometricSupport, authenticateWithBiometrics } from "../services/authService";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 
 // Required for expo-auth-session to close the browser after redirect.
 WebBrowser.maybeCompleteAuthSession();
@@ -23,6 +21,9 @@ const GOOGLE_ANDROID_CLIENT_ID = "YOUR_ANDROID_CLIENT_ID";
 const GOOGLE_CONFIGURED = (GOOGLE_ANDROID_CLIENT_ID as string) !== "YOUR_ANDROID_CLIENT_ID";
 
 export default function LoginScreen({ navigation }: any) {
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -76,7 +77,10 @@ export default function LoginScreen({ navigation }: any) {
 
   useEffect(() => {
     checkBiometricSupport().then(setBiometricSupported).catch(console.warn);
-    setHasCurrentUser(auth.currentUser !== null);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setHasCurrentUser(user !== null);
+    });
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -214,9 +218,12 @@ export default function LoginScreen({ navigation }: any) {
         </TouchableOpacity>
 
         {biometricSupported && hasCurrentUser && (
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleBiometricLogin}>
-            <Text style={styles.secondaryButtonText}>Login with Biometrics</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleBiometricLogin}>
+              <Text style={styles.secondaryButtonText}>Login with Biometrics</Text>
+            </TouchableOpacity>
+            <Text style={styles.helpText}>Use biometrics for quick return login on this device.</Text>
+          </>
         )}
 
         {GOOGLE_CONFIGURED ? (
@@ -229,7 +236,11 @@ export default function LoginScreen({ navigation }: any) {
               {googleLoading ? "Signing in..." : "Continue with Google"}
             </Text>
           </TouchableOpacity>
-        ) : null}
+        ) : (
+          <View style={styles.googleButtonUnconfigured}>
+            <Text style={styles.googleButtonUnconfiguredText}>Google Sign-In not configured for Android yet.</Text>
+          </View>
+        )}
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Register")}>
           <Text style={styles.linkText}>Don't have an account? Register</Text>
@@ -239,10 +250,11 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     justifyContent: "center",
     padding: 24,
   },
@@ -260,16 +272,16 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 34,
     fontWeight: "800",
-    color: COLORS.primary,
+    color: c.primary,
     letterSpacing: 0.5,
   },
   tagline: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginTop: 4,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: 24,
     shadowColor: "#000",
@@ -281,16 +293,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
     marginBottom: 16,
-    color: COLORS.text,
+    color: c.text,
   },
   passwordRow: {
     flexDirection: "row",
@@ -306,12 +318,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   toggleText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 14,
     fontWeight: "600",
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -324,16 +336,22 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: c.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 4,
   },
   secondaryButtonText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 15,
     fontWeight: "600",
+  },
+  helpText: {
+    fontSize: 12,
+    color: c.textMuted,
+    textAlign: "center",
+    marginBottom: 12,
   },
   linkButton: {
     alignItems: "center",
@@ -341,7 +359,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   linkText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 14,
   },
   googleButton: {
@@ -361,4 +379,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  googleButtonUnconfigured: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: c.border,
+    backgroundColor: c.surface,
+  },
+  googleButtonUnconfiguredText: {
+    color: c.textMuted,
+    fontSize: 13,
+    fontWeight: "500",
+  },
 });
+}

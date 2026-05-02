@@ -5,6 +5,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -84,6 +85,8 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business" ? "business" :
     userData?.role === "coordinator" ? "coordinator" : "home";
+  const isBusiness = role === "business";
+  const analyticsConsent: boolean = userData?.analyticsConsent === true;
 
   const { colors: c } = useTheme();
   const styles = getStyles(c);
@@ -95,6 +98,10 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const [expiredNow, setExpiredNow] = useState(0);
   const [expiringSoon, setExpiringSoon] = useState(0);
   const [activeTotal, setActiveTotal] = useState(0);
+  // business-specific
+  const [activeDonations, setActiveDonations] = useState(0);
+  const [completedDonations, setCompletedDonations] = useState(0);
+  const [totalQtyDonated, setTotalQtyDonated] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -107,6 +114,28 @@ export default function AnalyticsScreen({ navigation, route }: any) {
       }
 
       try {
+        if (isBusiness) {
+          // Business: show donation impact stats
+          const donQ = query(
+            collection(db, "donations"),
+            where("userId", "==", currentUser.uid)
+          );
+          const donSnap = await getDocs(donQ);
+          let active = 0;
+          let completed = 0;
+          let totalQty = 0;
+          donSnap.docs.forEach((d) => {
+            const data = d.data();
+            totalQty += typeof data.quantity === "number" ? data.quantity : 0;
+            if (data.status === "completed") completed += 1;
+            else active += 1;
+          });
+          setActiveDonations(active);
+          setCompletedDonations(completed);
+          setTotalQtyDonated(totalQty);
+          setLoading(false);
+          return;
+        }
         const q = query(
           collection(db, "wasteLogs"),
           where("userId", "==", currentUser.uid)
@@ -169,6 +198,75 @@ export default function AnalyticsScreen({ navigation, route }: any) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // Analytics consent gate (home users only — business always sees their donation stats)
+  if (!isBusiness && !analyticsConsent) {
+    return (
+      <View style={styles.outerContainer}>
+        <View style={styles.centered}>
+          <Text style={styles.consentIcon}>📊</Text>
+          <Text style={styles.consentTitle}>Analytics Disabled</Text>
+          <Text style={styles.consentBody}>
+            Analytics disabled. Enable in Profile to view insights.
+          </Text>
+          <TouchableOpacity
+            style={styles.consentButton}
+            onPress={() => navigation.navigate("Profile", { userData })}
+          >
+            <Text style={styles.consentButtonText}>Go to Profile</Text>
+          </TouchableOpacity>
+        </View>
+        <BottomNav navigation={navigation} active="Analytics" role={role} userData={userData} />
+      </View>
+    );
+  }
+
+  // Business: show donation impact stats
+  if (isBusiness) {
+    const estimatedKgDiverted = (totalQtyDonated * 0.5).toFixed(1);
+    return (
+      <View style={styles.outerContainer}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Donation Analytics</Text>
+        <Text style={styles.subtitle}>Your surplus food impact</Text>
+
+        <View style={styles.grid}>
+          <View style={styles.card}>
+            <Text style={styles.label}>Active Listings</Text>
+            <Text style={[styles.count, { color: c.primary }]}>{activeDonations}</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.label}>Completed</Text>
+            <Text style={[styles.count, styles.usedColor]}>{completedDonations}</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.label}>Total Qty Donated</Text>
+            <Text style={[styles.count, styles.usedColor]}>{totalQtyDonated}</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.label}>Est. Waste Diverted</Text>
+            <Text style={[styles.count, styles.usedColor]}>{estimatedKgDiverted} kg</Text>
+          </View>
+        </View>
+
+        {completedDonations === 0 && activeDonations === 0 ? (
+          <View style={styles.insightCard}>
+            <Text style={{ color: c.textMuted, fontSize: 14, textAlign: "center" }}>
+              No donations listed yet. Use "List Surplus Food" to start reducing food waste.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.insightCard}>
+            <Text style={[styles.insightMessage, { color: c.success }]}>
+              🌱 Thank you! Your {completedDonations} completed donation{completedDonations !== 1 ? "s" : ""} have helped reduce food waste in your community.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+      <BottomNav navigation={navigation} active="Analytics" role={role} userData={userData} />
       </View>
     );
   }
@@ -317,7 +415,42 @@ function getStyles(c: ThemeColors) {
     fontSize: 26,
     fontWeight: "800",
     color: c.text,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: c.textMuted,
     marginBottom: 20,
+  },
+  consentIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  consentTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: c.text,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  consentBody: {
+    fontSize: 14,
+    color: c.textMuted,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+    paddingHorizontal: 24,
+  },
+  consentButton: {
+    backgroundColor: c.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+  },
+  consentButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
   grid: {
     flexDirection: "row",

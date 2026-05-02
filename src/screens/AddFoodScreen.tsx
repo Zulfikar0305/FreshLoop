@@ -12,7 +12,8 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { auth } from "../firebase/firebaseConfig";
 import { addInventoryItem } from "../services/inventoryService";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 
 type BulkRow = {
   name: string;
@@ -23,6 +24,9 @@ type BulkRow = {
 };
 
 type Mode = "single" | "bulk";
+
+const UNIT_OPTIONS = ["item", "pack", "kg", "g", "L", "ml"] as const;
+type UnitOption = typeof UNIT_OPTIONS[number];
 
 // ── Expiry date helpers ──────────────────────────────────────────────────────
 
@@ -58,12 +62,16 @@ function isValidExpiryDate(value: string): boolean {
   return !isNaN(d.getTime()) && d.toISOString().startsWith(value);
 }
 
-export default function AddFoodScreen({ navigation }: any) {
-  const [mode, setMode] = useState<Mode>("single");
+export default function AddFoodScreen({ navigation, route }: any) {
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
+  const [mode, setMode] = useState<Mode>(route?.params?.mode === "bulk" ? "bulk" : "single");
 
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("");
+  const [quantityError, setQuantityError] = useState("");
+  const [unit, setUnit] = useState<UnitOption | "">("")
   const [expiryDate, setExpiryDate] = useState("");
   const [price, setPrice] = useState("");
 
@@ -77,10 +85,13 @@ export default function AddFoodScreen({ navigation }: any) {
   const [capturing, setCapturing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [cameraMode, setCameraMode] = useState<"single" | "bulk">("single");
+  const [bulkScanUri, setBulkScanUri] = useState<string | null>(null);
 
   const resetForm = () => {
     setName("");
     setQuantity("");
+    setQuantityError("");
     setUnit("");
     setExpiryDate("");
     setPrice("");
@@ -104,7 +115,11 @@ export default function AddFoodScreen({ navigation }: any) {
     try {
       const photo = await cameraRef.current.takePictureAsync();
       if (photo?.uri) {
-        setPhotoUri(photo.uri);
+        if (cameraMode === "bulk") {
+          setBulkScanUri(photo.uri);
+        } else {
+          setPhotoUri(photo.uri);
+        }
         setCameraOpen(false);
       } else {
         Alert.alert("Error", "Photo could not be captured. Please try again.");
@@ -123,7 +138,7 @@ export default function AddFoodScreen({ navigation }: any) {
     }
     const parsedQty = parseFloat(quantity);
     if (isNaN(parsedQty) || parsedQty <= 0) {
-      Alert.alert("Invalid Quantity", "Please enter a quantity greater than 0.");
+      Alert.alert("Invalid Quantity", "Quantity must be a number greater than 0.");
       return;
     }
 
@@ -287,7 +302,7 @@ export default function AddFoodScreen({ navigation }: any) {
           onPress={() => setMode("single")}
         >
           <Text style={[styles.toggleButtonText, mode === "single" && styles.toggleButtonTextActive]}>
-            Single Add
+            Add Single Item
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -295,7 +310,7 @@ export default function AddFoodScreen({ navigation }: any) {
           onPress={() => setMode("bulk")}
         >
           <Text style={[styles.toggleButtonText, mode === "bulk" && styles.toggleButtonTextActive]}>
-            Bulk Add
+            Smart Scan / Bulk Add
           </Text>
         </TouchableOpacity>
       </View>
@@ -317,20 +332,34 @@ export default function AddFoodScreen({ navigation }: any) {
             <TextInput
               placeholder="e.g. 2"
               value={quantity}
-              onChangeText={setQuantity}
+              onChangeText={(v) => {
+                if (/[^0-9.]/.test(v)) {
+                  setQuantityError("Quantity must be a number.");
+                } else {
+                  setQuantityError("");
+                }
+                setQuantity(v.replace(/[^0-9.]/g, ""));
+              }}
               keyboardType="numeric"
-              style={styles.input}
+              style={[styles.input, quantityError ? styles.inputError : undefined]}
               placeholderTextColor="#aaa"
             />
+            {quantityError ? (
+              <Text style={styles.fieldError}>{quantityError}</Text>
+            ) : null}
 
             <Text style={styles.label}>Unit <Text style={styles.optional}>(optional)</Text></Text>
-            <TextInput
-              placeholder="e.g. litres, kg, items"
-              value={unit}
-              onChangeText={setUnit}
-              style={styles.input}
-              placeholderTextColor="#aaa"
-            />
+            <View style={styles.chipRow}>
+              {UNIT_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.chip, unit === opt && styles.chipActive]}
+                  onPress={() => setUnit(unit === opt ? "" : opt)}
+                >
+                  <Text style={[styles.chipText, unit === opt && styles.chipTextActive]}>{opt}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={styles.label}>Expiry Date <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
@@ -389,6 +418,21 @@ export default function AddFoodScreen({ navigation }: any) {
       {mode === "bulk" && (
         <>
           <Text style={styles.bulkSubtitle}>Enter multiple items at once</Text>
+          <Text style={styles.helperText}>Use this when adding multiple grocery items. Future scanner support can pre-fill these rows.</Text>
+
+          {/* ── Scan Receipt button ── */}
+          {bulkScanUri ? (
+            <View style={styles.bulkScanPreview}>
+              <Text style={styles.bulkScanHelper}>📷 Scan-assisted entry: confirm or edit items before saving.</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.bulkScanButton}
+              onPress={() => { setCameraMode("bulk"); handleOpenCamera(); }}
+            >
+              <Text style={styles.bulkScanButtonText}>📷  Scan Receipt or Multiple Items</Text>
+            </TouchableOpacity>
+          )}
 
           {bulkRows.map((row, index) => (
             <View key={index} style={styles.bulkCard}>
@@ -410,18 +454,23 @@ export default function AddFoodScreen({ navigation }: any) {
                 <TextInput
                   placeholder="Qty *"
                   value={row.quantity}
-                  onChangeText={(v) => updateBulkRow(index, "quantity", v)}
+                  onChangeText={(v) => updateBulkRow(index, "quantity", v.replace(/[^0-9.]/g, ""))}
                   keyboardType="numeric"
                   style={[styles.bulkInput, styles.bulkInputHalf]}
                   placeholderTextColor="#aaa"
                 />
-                <TextInput
-                  placeholder="Unit"
-                  value={row.unit}
-                  onChangeText={(v) => updateBulkRow(index, "unit", v)}
-                  style={[styles.bulkInput, styles.bulkInputHalf]}
-                  placeholderTextColor="#aaa"
-                />
+              </View>
+              <Text style={styles.bulkUnitLabel}>Unit</Text>
+              <View style={styles.chipRow}>
+                {UNIT_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.chip, row.unit === opt && styles.chipActive]}
+                    onPress={() => updateBulkRow(index, "unit", row.unit === opt ? "" : opt)}
+                  >
+                    <Text style={[styles.chipText, row.unit === opt && styles.chipTextActive]}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
               <View style={styles.bulkRow}>
                 <TextInput
@@ -468,27 +517,27 @@ export default function AddFoodScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 20,
     paddingBottom: 48,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginBottom: 16,
   },
-  // ── Mode toggle ──
   toggleContainer: {
     flexDirection: "row",
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 4,
     marginBottom: 20,
@@ -505,19 +554,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   toggleButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: COLORS.textMuted,
+    color: c.textMuted,
   },
   toggleButtonTextActive: {
     color: "#fff",
   },
-  // ── Single form ──
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -530,30 +578,41 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 6,
   },
   optional: {
     fontSize: 12,
     fontWeight: "400",
-    color: "#aaa",
+    color: c.textMuted,
   },
   helperText: {
     fontSize: 12,
-    color: "#aaa",
-    marginTop: -10,
+    color: c.textMuted,
+    marginTop: 2,
     marginBottom: 14,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
     borderRadius: 10,
     padding: 13,
     fontSize: 15,
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 14,
   },
+  inputError: {
+    borderWidth: 1.5,
+    borderColor: c.danger,
+  },
+  fieldError: {
+    fontSize: 12,
+    color: c.danger,
+    marginTop: -10,
+    marginBottom: 10,
+    fontWeight: "500",
+  },
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -570,17 +629,70 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    color: COLORS.textMuted,
+    color: c.textMuted,
     fontSize: 15,
+  },
+  // ── Unit chip selector ──
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14,
+  },
+  chip: {
+    borderWidth: 1.5,
+    borderColor: c.border,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  chipActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: c.textMuted,
+  },
+  chipTextActive: {
+    color: "#fff",
   },
   // ── Bulk section ──
   bulkSubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
+    marginBottom: 8,
+  },
+  bulkScanButton: {
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
     marginBottom: 16,
+    backgroundColor: c.card,
+  },
+  bulkScanButtonText: {
+    color: c.primary,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  bulkScanPreview: {
+    backgroundColor: c.card,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: c.primary,
+  },
+  bulkScanHelper: {
+    fontSize: 13,
+    color: c.primary,
+    fontWeight: "600",
   },
   bulkCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -590,7 +702,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: c.primary,
   },
   bulkCardHeader: {
     flexDirection: "row",
@@ -601,7 +713,7 @@ const styles = StyleSheet.create({
   bulkRowLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: COLORS.primary,
+    color: c.primary,
   },
   removeButton: {
     paddingHorizontal: 8,
@@ -609,16 +721,23 @@ const styles = StyleSheet.create({
   },
   removeButtonText: {
     fontSize: 13,
-    color: COLORS.danger,
+    color: c.danger,
     fontWeight: "600",
   },
   bulkInput: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
     borderRadius: 9,
     padding: 11,
     fontSize: 14,
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 8,
+  },
+  bulkUnitLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: c.text,
+    marginBottom: 6,
+    marginTop: 2,
   },
   bulkRow: {
     flexDirection: "row",
@@ -630,19 +749,19 @@ const styles = StyleSheet.create({
   },
   addRowButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: c.primary,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
     marginBottom: 12,
   },
   addRowButtonText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 15,
     fontWeight: "700",
   },
   bulkSaveButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: c.accent,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -665,7 +784,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   captureButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -687,10 +806,9 @@ const styles = StyleSheet.create({
     color: "#aaa",
     fontSize: 15,
   },
-  // ── Photo preview (in single form) ──
   photoDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: c.border,
     marginVertical: 12,
   },
   photoPreviewContainer: {
@@ -701,40 +819,41 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 10,
     marginBottom: 8,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
   },
   photoHelperText: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: c.primary,
     fontWeight: "500",
     marginBottom: 10,
     lineHeight: 17,
   },
   retakeButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: c.primary,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
     marginBottom: 4,
   },
   retakeButtonText: {
-    color: COLORS.primary,
+    color: c.primary,
     fontSize: 14,
     fontWeight: "600",
   },
   scanButton: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: c.inputBg,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: c.border,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
     marginBottom: 4,
   },
   scanButtonText: {
-    color: COLORS.text,
+    color: c.text,
     fontSize: 14,
     fontWeight: "600",
   },
 });
+}
