@@ -52,10 +52,20 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
+  const [activeProfileTab, setActiveProfileTab] = useState<"Profile" | "Details" | "Consent" | "Appearance">("Profile");
+  const [availabilityChips, setAvailabilityChips] = useState<string[]>([]);
 
   const showToast = () => {
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2500);
+  };
+
+  const toggleAvailChip = (chip: string) => {
+    setAvailabilityChips((prev) => {
+      const next = prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip];
+      setProfile((p) => ({ ...p, availability: next.join(", ") }));
+      return next;
+    });
   };
   const [profile, setProfile] = useState<ProfileData>({
     fullName: "",
@@ -120,6 +130,9 @@ export default function ProfileScreen({ navigation, route }: any) {
           availability: data.availability ?? "",
           vehicleCapacity: data.vehicleCapacity ?? "",
         });
+        setAvailabilityChips(
+          (data.availability ?? "").split(",").map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+        );
       } catch (error: any) {
         Alert.alert("Error", error.message);
       } finally {
@@ -220,251 +233,312 @@ export default function ProfileScreen({ navigation, route }: any) {
     );
   }
 
+  const roleLabel =
+    role === "business" ? "Business Account" :
+    role === "coordinator" ? "NPO Coordinator" : "Home User";
+
   return (
     <View style={styles.outerContainer}>
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>My Profile</Text>
+      {/* ── Top header: title + logout ── */}
+      <View style={styles.profileHeaderRow}>
+        <Text style={styles.title}>My Profile</Text>
+        <TouchableOpacity style={styles.logoutTopButton} onPress={handleLogout}>
+          <Text style={styles.logoutTopText}>🚪 Logout</Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.label}>Full Name</Text>
-      <TextInput
-        value={profile.fullName}
-        onChangeText={(v) => setProfile((p) => ({ ...p, fullName: v }))}
-        placeholder="e.g. Jane Doe"
-        placeholderTextColor="#aaa"
-        style={styles.input}
-      />
+      {/* ── Tab bar ── */}
+      <View style={styles.tabBar}>
+        {(["Profile", "Details", "Consent", "Appearance"] as const).map((t) => (
+          <TouchableOpacity
+            key={t}
+            style={[styles.tabBarItem, activeProfileTab === t && styles.tabBarItemActive]}
+            onPress={() => setActiveProfileTab(t)}
+          >
+            <Text style={[styles.tabBarText, activeProfileTab === t && styles.tabBarTextActive]}>
+              {t}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      {role === "home" && (
-        <>
-          <Text style={styles.label}>Household Size</Text>
-          <TextInput
-            value={profile.householdSize}
-            onChangeText={(v) => setProfile((p) => ({ ...p, householdSize: v }))}
-            placeholder="e.g. 4"
-            keyboardType="numeric"
-            placeholderTextColor="#aaa"
-            style={styles.input}
-          />
+      <ScrollView contentContainerStyle={styles.container}>
 
-          <Text style={styles.label}>Dietary Preferences (comma-separated)</Text>
-          <TextInput
-            value={profile.dietaryPreferences}
-            onChangeText={(v) => setProfile((p) => ({ ...p, dietaryPreferences: v }))}
-            placeholder="e.g. vegetarian, gluten-free"
-            placeholderTextColor="#aaa"
-            style={styles.input}
-          />
+        {/* ══ Profile Tab ══ */}
+        {activeProfileTab === "Profile" && (
+          <>
+            <View style={styles.roleBadgeRow}>
+              <Text style={styles.roleBadge}>{roleLabel}</Text>
+            </View>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              value={profile.fullName}
+              onChangeText={(v) => setProfile((p) => ({ ...p, fullName: v }))}
+              placeholder="e.g. Jane Doe"
+              placeholderTextColor="#aaa"
+              style={styles.input}
+            />
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.primaryButtonText}>
+                {saving ? "Saving..." : "Save Profile"}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
 
-          <Text style={styles.label}>Kitchen Equipment (comma-separated)</Text>
-          <TextInput
-            value={profile.kitchenEquipment}
-            onChangeText={(v) => setProfile((p) => ({ ...p, kitchenEquipment: v }))}
-            placeholder="e.g. oven, blender"
-            placeholderTextColor="#aaa"
-            style={styles.input}
-          />
+        {/* ══ Details Tab ══ */}
+        {activeProfileTab === "Details" && (
+          <>
+            {role === "home" && (
+              <>
+                <Text style={styles.label}>Household Size</Text>
+                <TextInput
+                  value={profile.householdSize}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, householdSize: v }))}
+                  placeholder="e.g. 4"
+                  keyboardType="numeric"
+                  placeholderTextColor="#aaa"
+                  style={styles.input}
+                />
 
-          <Text style={styles.label}>Cooking Skill</Text>
-          <View style={styles.chipRow}>
-            {["beginner", "intermediate", "advanced"].map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[styles.chip, profile.cookingSkill === opt && styles.chipActive]}
-                onPress={() => setProfile((p) => ({ ...p, cookingSkill: opt }))}
-              >
-                <Text style={[styles.chipText, profile.cookingSkill === opt && styles.chipTextActive]}>
-                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                <Text style={styles.label}>Dietary Preferences <Text style={styles.optional}>(comma-separated)</Text></Text>
+                <TextInput
+                  value={profile.dietaryPreferences}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, dietaryPreferences: v }))}
+                  placeholder="e.g. vegetarian, gluten-free"
+                  placeholderTextColor="#aaa"
+                  style={styles.input}
+                />
+
+                <Text style={styles.label}>Kitchen Equipment <Text style={styles.optional}>(comma-separated)</Text></Text>
+                <TextInput
+                  value={profile.kitchenEquipment}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, kitchenEquipment: v }))}
+                  placeholder="e.g. oven, blender"
+                  placeholderTextColor="#aaa"
+                  style={styles.input}
+                />
+
+                <Text style={styles.label}>Cooking Skill</Text>
+                <View style={styles.chipRow}>
+                  {["beginner", "intermediate", "advanced"].map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.chip, profile.cookingSkill === opt && styles.chipActive]}
+                      onPress={() => setProfile((p) => ({ ...p, cookingSkill: opt }))}
+                    >
+                      <Text style={[styles.chipText, profile.cookingSkill === opt && styles.chipTextActive]}>
+                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.label}>Expiry Reminder Window</Text>
+                <View style={styles.chipRow}>
+                  {["1", "3", "7"].map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.chip, profile.reminderWindowDays === opt && styles.chipActive]}
+                      onPress={() => setProfile((p) => ({ ...p, reminderWindowDays: opt }))}
+                    >
+                      <Text style={[styles.chipText, profile.reminderWindowDays === opt && styles.chipTextActive]}>
+                        {opt} day{opt !== "1" ? "s" : ""}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.label}>Waste Goal</Text>
+                <View style={styles.chipRow}>
+                  {[
+                    { value: "save_money", label: "💰 Save Money" },
+                    { value: "reduce_waste", label: "♻️ Reduce Waste" },
+                    { value: "donate_more", label: "🤝 Donate More" },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[styles.chip, profile.wasteGoal === opt.value && styles.chipActive]}
+                      onPress={() => setProfile((p) => ({ ...p, wasteGoal: opt.value }))}
+                    >
+                      <Text style={[styles.chipText, profile.wasteGoal === opt.value && styles.chipTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {role === "business" && (
+              <>
+                <Text style={styles.label}>Business Name</Text>
+                <TextInput
+                  value={profile.businessName}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, businessName: v }))}
+                  placeholder="Your business or organisation name"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Contact Number</Text>
+                <TextInput
+                  value={profile.contactNumber}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, contactNumber: v }))}
+                  placeholder="e.g. +27 21 123 4567"
+                  placeholderTextColor={c.textMuted}
+                  keyboardType="phone-pad"
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Business Address</Text>
+                <TextInput
+                  value={profile.businessAddress}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, businessAddress: v }))}
+                  placeholder="Street address for donation pickups"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Donation Category</Text>
+                <TextInput
+                  value={profile.donationCategory}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, donationCategory: v }))}
+                  placeholder="e.g. Dry goods, Produce, Bakery items"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Operating Hours</Text>
+                <TextInput
+                  value={profile.operatingHours}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, operatingHours: v }))}
+                  placeholder="e.g. Mon–Fri 8am–5pm"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+              </>
+            )}
+
+            {role === "coordinator" && (
+              <>
+                <Text style={styles.label}>Organisation Name</Text>
+                <TextInput
+                  value={profile.organisationName}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, organisationName: v }))}
+                  placeholder="NPO or coordinating body name"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Contact Number</Text>
+                <TextInput
+                  value={profile.contactNumber}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, contactNumber: v }))}
+                  placeholder="e.g. +27 21 123 4567"
+                  placeholderTextColor={c.textMuted}
+                  keyboardType="phone-pad"
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Service Area / Pickup Region</Text>
+                <TextInput
+                  value={profile.serviceArea}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, serviceArea: v }))}
+                  placeholder="e.g. Cape Town CBD, Bellville, Khayelitsha"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Availability</Text>
+                <View style={styles.chipRow}>
+                  {["Weekdays", "Weekends", "Public Holidays", "Flexible"].map((chip) => (
+                    <TouchableOpacity
+                      key={chip}
+                      style={[styles.chip, availabilityChips.includes(chip) && styles.chipActive]}
+                      onPress={() => toggleAvailChip(chip)}
+                    >
+                      <Text style={[styles.chipText, availabilityChips.includes(chip) && styles.chipTextActive]}>
+                        {chip}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.label}>Vehicle Capacity</Text>
+                <TextInput
+                  value={profile.vehicleCapacity}
+                  onChangeText={(v) => setProfile((p) => ({ ...p, vehicleCapacity: v }))}
+                  placeholder="e.g. Sedan, Bakkie, Van — max 100 kg"
+                  placeholderTextColor={c.textMuted}
+                  style={styles.input}
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.primaryButtonText}>
+                {saving ? "Saving..." : "Save Details"}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ══ Consent Tab ══ */}
+        {activeProfileTab === "Consent" && (
+          <>
+            <View style={styles.row}>
+              <Text style={styles.switchLabel}>📍 Location Consent</Text>
+              <Switch
+                value={profile.locationConsent}
+                onValueChange={(v) => setProfile((p) => ({ ...p, locationConsent: v }))}
+              />
+            </View>
+            <Text style={styles.consentHint}>Enables GPS features for donation pickup locations.</Text>
+
+            <View style={styles.row}>
+              <Text style={styles.switchLabel}>📊 Analytics Consent</Text>
+              <Switch
+                value={profile.analyticsConsent}
+                onValueChange={(v) => setProfile((p) => ({ ...p, analyticsConsent: v }))}
+              />
+            </View>
+            <Text style={styles.consentHint}>Allows FreshLoop to show your waste statistics and AI predictions.</Text>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.primaryButtonText}>
+                {saving ? "Saving..." : "Save Consent"}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ══ Appearance Tab ══ */}
+        {activeProfileTab === "Appearance" && (
+          <View style={styles.row}>
+            <Text style={styles.switchLabel}>🌙 Dark Mode</Text>
+            <Switch
+              value={mode === "dark"}
+              onValueChange={toggleTheme}
+              trackColor={{ false: "#ccc", true: c.primary }}
+              thumbColor="#fff"
+            />
           </View>
+        )}
 
-          <Text style={styles.label}>Reminder Window</Text>
-          <View style={styles.chipRow}>
-            {["1", "3", "7"].map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[styles.chip, profile.reminderWindowDays === opt && styles.chipActive]}
-                onPress={() => setProfile((p) => ({ ...p, reminderWindowDays: opt }))}
-              >
-                <Text style={[styles.chipText, profile.reminderWindowDays === opt && styles.chipTextActive]}>
-                  {opt} day{opt !== "1" ? "s" : ""}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <View style={{ height: 8 }} />
+      </ScrollView>
 
-          <Text style={styles.label}>Waste Goal</Text>
-          <View style={styles.chipRow}>
-            {[
-              { value: "save_money", label: "💰 Save Money" },
-              { value: "reduce_waste", label: "♻️ Reduce Waste" },
-              { value: "donate_more", label: "🤝 Donate More" },
-            ].map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.chip, profile.wasteGoal === opt.value && styles.chipActive]}
-                onPress={() => setProfile((p) => ({ ...p, wasteGoal: opt.value }))}
-              >
-                <Text style={[styles.chipText, profile.wasteGoal === opt.value && styles.chipTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
+      <BottomNav navigation={navigation} active="Profile" role={role} userData={userData} />
+      {toastVisible && (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>✅ Settings saved successfully</Text>
+        </View>
       )}
-
-      {role === "business" && (
-        <>
-          <Text style={styles.sectionHeader}>Business Details</Text>
-
-          <Text style={styles.label}>Business Name</Text>
-          <TextInput
-            value={profile.businessName}
-            onChangeText={(v) => setProfile((p) => ({ ...p, businessName: v }))}
-            placeholder="Your business or organisation name"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Contact Number</Text>
-          <TextInput
-            value={profile.contactNumber}
-            onChangeText={(v) => setProfile((p) => ({ ...p, contactNumber: v }))}
-            placeholder="e.g. +27 21 123 4567"
-            placeholderTextColor={c.textMuted}
-            keyboardType="phone-pad"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Business Address</Text>
-          <TextInput
-            value={profile.businessAddress}
-            onChangeText={(v) => setProfile((p) => ({ ...p, businessAddress: v }))}
-            placeholder="Street address for donation pickups"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Donation Category</Text>
-          <TextInput
-            value={profile.donationCategory}
-            onChangeText={(v) => setProfile((p) => ({ ...p, donationCategory: v }))}
-            placeholder="e.g. Dry goods, Produce, Bakery items"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Operating Hours</Text>
-          <TextInput
-            value={profile.operatingHours}
-            onChangeText={(v) => setProfile((p) => ({ ...p, operatingHours: v }))}
-            placeholder="e.g. Mon–Fri 8am–5pm"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-        </>
-      )}
-
-      {role === "coordinator" && (
-        <>
-          <Text style={styles.sectionHeader}>Coordinator Details</Text>
-
-          <Text style={styles.label}>Organisation Name</Text>
-          <TextInput
-            value={profile.organisationName}
-            onChangeText={(v) => setProfile((p) => ({ ...p, organisationName: v }))}
-            placeholder="NPO or coordinating body name"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Contact Number</Text>
-          <TextInput
-            value={profile.contactNumber}
-            onChangeText={(v) => setProfile((p) => ({ ...p, contactNumber: v }))}
-            placeholder="e.g. +27 21 123 4567"
-            placeholderTextColor={c.textMuted}
-            keyboardType="phone-pad"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Service Area</Text>
-          <TextInput
-            value={profile.serviceArea}
-            onChangeText={(v) => setProfile((p) => ({ ...p, serviceArea: v }))}
-            placeholder="e.g. Cape Town CBD, Bellville, Khayelitsha"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Availability</Text>
-          <TextInput
-            value={profile.availability}
-            onChangeText={(v) => setProfile((p) => ({ ...p, availability: v }))}
-            placeholder="e.g. Weekdays 9am–4pm"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Vehicle Capacity</Text>
-          <TextInput
-            value={profile.vehicleCapacity}
-            onChangeText={(v) => setProfile((p) => ({ ...p, vehicleCapacity: v }))}
-            placeholder="e.g. Sedan, Bakkie, Van — max 100 kg"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-          />
-        </>
-      )}
-
-      <View style={styles.row}>
-        <Text style={styles.switchLabel}>Location Consent</Text>
-        <Switch
-          value={profile.locationConsent}
-          onValueChange={(v) => setProfile((p) => ({ ...p, locationConsent: v }))}
-        />
-      </View>
-
-      <View style={styles.row}>
-        <Text style={styles.switchLabel}>Analytics Consent</Text>
-        <Switch
-          value={profile.analyticsConsent}
-          onValueChange={(v) => setProfile((p) => ({ ...p, analyticsConsent: v }))}
-        />
-      </View>
-
-      <View style={styles.row}>
-        <Text style={styles.switchLabel}>🌙 Dark Mode</Text>
-        <Switch
-          value={mode === "dark"}
-          onValueChange={toggleTheme}
-          trackColor={{ false: "#ccc", true: c.primary }}
-          thumbColor="#fff"
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
-        onPress={handleSave}
-        disabled={saving}
-      >
-        <Text style={styles.primaryButtonText}>
-          {saving ? "Saving..." : "Save Profile"}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>🚪 Log Out</Text>
-      </TouchableOpacity>
-    </ScrollView>
-    <BottomNav navigation={navigation} active="Profile" role={role} userData={userData} />
-    {toastVisible && (
-      <View style={styles.toast} pointerEvents="none">
-        <Text style={styles.toastText}>✅ Settings saved successfully</Text>
-      </View>
-    )}
     </View>
   );
 }
@@ -474,6 +548,77 @@ function getStyles(c: ThemeColors) {
   outerContainer: {
     flex: 1,
     backgroundColor: c.background,
+  },
+  profileHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+  },
+  logoutTopButton: {
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  logoutTopText: {
+    color: c.danger,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: c.card,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+  },
+  tabBarItem: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  tabBarItemActive: {
+    borderBottomColor: c.primary,
+  },
+  tabBarText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: c.textMuted,
+  },
+  tabBarTextActive: {
+    color: c.primary,
+    fontWeight: "700",
+  },
+  roleBadgeRow: {
+    marginBottom: 16,
+  },
+  roleBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: c.primary + "22",
+    color: c.primary,
+    fontSize: 12,
+    fontWeight: "700",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  consentHint: {
+    fontSize: 12,
+    color: c.textMuted,
+    marginTop: -8,
+    marginBottom: 14,
+    lineHeight: 17,
+  },
+  optional: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: c.textMuted,
   },
   container: {
     backgroundColor: c.background,
@@ -490,7 +635,6 @@ function getStyles(c: ThemeColors) {
     fontSize: 26,
     fontWeight: "800",
     color: c.text,
-    marginBottom: 24,
   },
   toast: {
     position: "absolute",
@@ -580,18 +724,10 @@ function getStyles(c: ThemeColors) {
     fontWeight: "700",
   },
   logoutButton: {
-    borderWidth: 1.5,
-    borderColor: c.danger,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 8,
+    display: "none", // moved to header top button
   },
   logoutButtonText: {
     color: c.danger,
-    fontSize: 15,
-    fontWeight: "700",
   },
   chipRow: {
     flexDirection: "row",

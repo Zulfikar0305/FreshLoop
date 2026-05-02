@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Text, View, TextInput, TouchableOpacity, Alert, StyleSheet, Image } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, onAuthStateChanged } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
@@ -28,6 +29,7 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [hasCurrentUser, setHasCurrentUser] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -77,6 +79,9 @@ export default function LoginScreen({ navigation }: any) {
 
   useEffect(() => {
     checkBiometricSupport().then(setBiometricSupported).catch(console.warn);
+    AsyncStorage.getItem("freshloop_biometric_enabled")
+      .then((val) => setBiometricEnabled(val === "true"))
+      .catch(console.warn);
     const unsub = onAuthStateChanged(auth, (user) => {
       setHasCurrentUser(user !== null);
     });
@@ -154,6 +159,9 @@ export default function LoginScreen({ navigation }: any) {
 
       const userData = userSnap.data();
 
+      // Enable biometric quick-login for future sessions
+      await AsyncStorage.setItem("freshloop_biometric_enabled", "true");
+
       navigation.reset({ index: 0, routes: [{ name: "HomeDashboard", params: { userData } }] });
     } catch (error: any) {
       const code: string = error?.code ?? "";
@@ -217,13 +225,16 @@ export default function LoginScreen({ navigation }: any) {
           <Text style={styles.primaryButtonText}>Login</Text>
         </TouchableOpacity>
 
-        {biometricSupported && hasCurrentUser && (
+        {biometricSupported && biometricEnabled && hasCurrentUser && (
           <>
             <TouchableOpacity style={styles.secondaryButton} onPress={handleBiometricLogin}>
               <Text style={styles.secondaryButtonText}>Login with Biometrics</Text>
             </TouchableOpacity>
             <Text style={styles.helpText}>Use biometrics for quick return login on this device.</Text>
           </>
+        )}
+        {biometricSupported && !biometricEnabled && (
+          <Text style={styles.helpText}>Biometrics are available after your first successful login on this device.</Text>
         )}
 
         {GOOGLE_CONFIGURED ? (

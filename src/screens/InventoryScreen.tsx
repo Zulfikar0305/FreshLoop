@@ -57,6 +57,7 @@ export default function InventoryScreen({ navigation, route }: any) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<"all" | "expiring" | "used" | "wasted">("all");
 
   const fetchItems = async () => {
     setLoading(true);
@@ -82,12 +83,26 @@ export default function InventoryScreen({ navigation, route }: any) {
     fetchItems();
   }, []);
 
-  const handleStatusUpdate = async (item: InventoryItem, status: "used" | "wasted") => {
+  const handleStatusUpdate = (item: InventoryItem, status: "used" | "wasted") => {
     if (item.status !== "active") {
       Alert.alert("Already updated", `This item has already been marked as ${item.status}.`);
       return;
     }
+    Alert.alert(
+      status === "used" ? "Mark as Used?" : "Mark as Wasted?",
+      `Mark "${item.name}" as ${status}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          style: status === "wasted" ? "destructive" : "default",
+          onPress: () => doStatusUpdate(item, status),
+        },
+      ]
+    );
+  };
 
+  const doStatusUpdate = async (item: InventoryItem, status: "used" | "wasted") => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       Alert.alert("Error", "No logged-in user found.");
@@ -102,7 +117,6 @@ export default function InventoryScreen({ navigation, route }: any) {
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, status } : i))
       );
-      Alert.alert("Updated", `Item marked as ${status}.`);
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {
@@ -119,61 +133,99 @@ export default function InventoryScreen({ navigation, route }: any) {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>My Inventory</Text>
-      <FlatList
-        data={items}
-        style={{ flex: 1 }}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No items found.</Text>
-        }
-        renderItem={({ item }) => {
-          const days = getDaysRemaining(item.expiryDate);
-          const color = getExpiryColor(days);
-          const label = getExpiryLabel(days);
-          return (
-            <View style={styles.card}>
-              {item.photoUrl ? (
-                <Image
-                  source={{ uri: item.photoUrl }}
-                  style={styles.thumbnail}
-                  resizeMode="cover"
-                />
-              ) : null}
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.detail}>
-                Quantity: {item.quantity} {item.unit}
+    <View style={styles.outerContainer}>
+      <View style={styles.headerArea}>
+        <Text style={styles.title}>My Inventory</Text>
+        {/* Filter row */}
+        <View style={styles.filterRow}>
+          {(["all", "expiring", "used", "wasted"] as const).map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filterTab, activeFilter === f && styles.filterTabActive]}
+              onPress={() => setActiveFilter(f)}
+            >
+              <Text style={[styles.filterTabText, activeFilter === f && styles.filterTabTextActive]}>
+                {f === "all" ? "All" : f === "expiring" ? "Expiring" : f === "used" ? "Used" : "Wasted"}
               </Text>
-              <Text style={[styles.detail, { color }]}>{label}</Text>
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.usedButton,
-                    (item.status !== "active" || updatingId === item.id) && styles.disabledButton,
-                  ]}
-                  onPress={() => handleStatusUpdate(item, "used")}
-                  disabled={item.status !== "active" || updatingId === item.id}
-                >
-                  <Text style={styles.actionText}>Used</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.wasteButton,
-                    (item.status !== "active" || updatingId === item.id) && styles.disabledButton,
-                  ]}
-                  onPress={() => handleStatusUpdate(item, "wasted")}
-                  disabled={item.status !== "active" || updatingId === item.id}
-                >
-                  <Text style={styles.actionText}>Waste</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        }}
-      />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {(() => {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const soon = new Date(today); soon.setDate(today.getDate() + 7);
+        const filteredItems = items.filter((i) => {
+          if (activeFilter === "expiring") {
+            if (i.status !== "active" || !i.expiryDate) return false;
+            const exp = new Date(i.expiryDate); exp.setHours(0, 0, 0, 0);
+            return exp <= soon;
+          }
+          if (activeFilter === "used") return i.status === "used";
+          if (activeFilter === "wasted") return i.status === "wasted";
+          return true;
+        });
+        return (
+          <FlatList
+            data={filteredItems}
+            style={{ flex: 1 }}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={
+              <Text style={styles.empty}>
+                {activeFilter === "expiring" ? "No items expiring in the next 7 days." :
+                 activeFilter === "used" ? "No used items yet." :
+                 activeFilter === "wasted" ? "No wasted items." :
+                 "No items found."}
+              </Text>
+            }
+            renderItem={({ item }) => {
+              const days = getDaysRemaining(item.expiryDate);
+              const color = getExpiryColor(days);
+              const label = getExpiryLabel(days);
+              return (
+                <View style={styles.card}>
+                  {item.photoUrl ? (
+                    <Image
+                      source={{ uri: item.photoUrl }}
+                      style={styles.thumbnail}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.detail}>
+                    Quantity: {item.quantity} {item.unit}
+                  </Text>
+                  <Text style={[styles.detail, { color }]}>{label}</Text>
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        styles.usedButton,
+                        (item.status !== "active" || updatingId === item.id) && styles.disabledButton,
+                      ]}
+                      onPress={() => handleStatusUpdate(item, "used")}
+                      disabled={item.status !== "active" || updatingId === item.id}
+                    >
+                      <Text style={styles.actionText}>Mark Used</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        styles.wasteButton,
+                        (item.status !== "active" || updatingId === item.id) && styles.disabledButton,
+                      ]}
+                      onPress={() => handleStatusUpdate(item, "wasted")}
+                      disabled={item.status !== "active" || updatingId === item.id}
+                    >
+                      <Text style={styles.actionText}>Mark Wasted</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            }}
+          />
+        );
+      })()}
       <BottomNav navigation={navigation} active="Inventory" role={role} userData={userData} />
     </View>
   );
@@ -181,6 +233,16 @@ export default function InventoryScreen({ navigation, route }: any) {
 
 function getStyles(c: ThemeColors) {
   return StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: c.background,
+  },
+  headerArea: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+    backgroundColor: c.background,
+  },
   container: {
     flex: 1,
     backgroundColor: c.background,
@@ -257,6 +319,33 @@ function getStyles(c: ThemeColors) {
     height: 140,
     borderRadius: 10,
     marginBottom: 10,
+  },
+  // Filter row
+  filterRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  filterTab: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: c.border,
+    borderRadius: 20,
+    paddingVertical: 7,
+    alignItems: "center",
+  },
+  filterTabActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  filterTabText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: c.textMuted,
+  },
+  filterTabTextActive: {
+    color: "#fff",
   },
 });
 }

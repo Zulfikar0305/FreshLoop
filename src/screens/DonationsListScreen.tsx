@@ -25,6 +25,7 @@ import BottomNav from "../components/BottomNav";
 
 type Donation = {
   id: string;
+  userId?: string;
   foodName: string;
   quantity: number;
   description: string;
@@ -78,6 +79,7 @@ export default function DonationsListScreen({ navigation, route }: any) {
   const [activeTab, setActiveTab] = useState<"available" | "claimed" | "completed">("available");
 
   const isCoordinator = role === "coordinator";
+  const isBusiness = role === "business";
 
   const handleOpenMaps = (latitude: number, longitude: number) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
@@ -149,6 +151,7 @@ export default function DonationsListScreen({ navigation, route }: any) {
         const currentUser = auth.currentUser;
         const mapDoc = (d: any): Donation => ({
           id: d.id,
+          userId: d.data().userId ?? undefined,
           foodName: d.data().foodName ?? "",
           quantity: d.data().quantity ?? 0,
           description: d.data().description ?? "",
@@ -158,28 +161,39 @@ export default function DonationsListScreen({ navigation, route }: any) {
           createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : undefined,
         });
 
-        const availableQ = query(
-          collection(db, "donations"),
-          where("status", "==", "available")
-        );
-        const availableSnap = await getDocs(availableQ);
-        setDonations(availableSnap.docs.map(mapDoc));
+        if (!currentUser) {
+          setLoading(false);
+          return;
+        }
 
-        if (currentUser) {
-          const claimedQ = query(
-            collection(db, "donations"),
-            where("claimedBy", "==", currentUser.uid)
+        if (isBusiness) {
+          // Business: only see their own listings
+          const [myAvailSnap, myCompSnap] = await Promise.all([
+            getDocs(query(collection(db, "donations"),
+              where("userId", "==", currentUser.uid),
+              where("status", "==", "available"))),
+            getDocs(query(collection(db, "donations"),
+              where("userId", "==", currentUser.uid),
+              where("status", "==", "completed"))),
+          ]);
+          setDonations(myAvailSnap.docs.map(mapDoc));
+          setCompletedDonations(myCompSnap.docs.map(mapDoc));
+          setClaimedDonations([]);
+        } else {
+          // Coordinator / home: all available, claimed/completed by me
+          const availableSnap = await getDocs(
+            query(collection(db, "donations"), where("status", "==", "available"))
           );
-          const claimedSnap = await getDocs(claimedQ);
+          setDonations(availableSnap.docs.map(mapDoc));
+
+          const claimedSnap = await getDocs(
+            query(collection(db, "donations"), where("claimedBy", "==", currentUser.uid))
+          );
           setClaimedDonations(
-            claimedSnap.docs
-              .filter((d) => d.data().status === "claimed")
-              .map(mapDoc)
+            claimedSnap.docs.filter((d) => d.data().status === "claimed").map(mapDoc)
           );
           setCompletedDonations(
-            claimedSnap.docs
-              .filter((d) => d.data().status === "completed")
-              .map(mapDoc)
+            claimedSnap.docs.filter((d) => d.data().status === "completed").map(mapDoc)
           );
         }
       } catch (error: any) {
@@ -200,11 +214,16 @@ export default function DonationsListScreen({ navigation, route }: any) {
     );
   }
 
-  const TABS: { key: "available" | "claimed" | "completed"; label: string }[] = [
-    { key: "available", label: `Available (${donations.length})` },
-    { key: "claimed",   label: `Claimed (${claimedDonations.length})` },
-    { key: "completed", label: `Done (${completedDonations.length})` },
-  ];
+  const TABS: { key: "available" | "claimed" | "completed"; label: string }[] = isBusiness
+    ? [
+        { key: "available", label: `My Listings (${donations.length})` },
+        { key: "completed", label: `Completed (${completedDonations.length})` },
+      ]
+    : [
+        { key: "available", label: `Available (${donations.length})` },
+        { key: "claimed",   label: `Claimed (${claimedDonations.length})` },
+        { key: "completed", label: `Done (${completedDonations.length})` },
+      ];
 
   return (
     <View style={styles.outerContainer}>

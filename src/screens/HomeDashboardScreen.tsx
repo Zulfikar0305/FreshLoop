@@ -112,7 +112,7 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
   const hasAlerts = expiredCount > 0 || expiringSoonCount > 0;
   const showHighRiskModal = !riskDismissed && (expiredCount >= 3 || (expiredCount + expiringSoonCount) >= 5);
-  const showDonateCard = role === "home" && expiringSoonCount > 0;
+  const showDonateCard = role === "home";
 
   const homeCards: CardItem[] = [
     { icon: "🍎", title: "Add Food",         desc: "Track new pantry items",          screen: "AddFood" },
@@ -187,8 +187,8 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
 
       <Text style={styles.sectionTitle}>What would you like to do?</Text>
 
-      {/* Expiry Alerts card */}
-      {!alertLoading && (
+      {/* Expiry Alerts card — home users only */}
+      {!alertLoading && role === "home" && (
         <View style={[
           styles.alertCard,
           hasAlerts ? styles.alertCardWarn : styles.alertCardOk,
@@ -225,8 +225,8 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         </View>
       )}
 
-      {/* Smart Summary card */}
-      {!alertLoading && wasteGoal !== "" && (
+      {/* Smart Summary card — home users only */}
+      {!alertLoading && wasteGoal !== "" && role === "home" && (
         <View style={styles.smartCard}>
           <Text style={styles.smartTitle}>✨ Smart Summary</Text>
           <Text style={styles.smartTip}>{getSmartTip(wasteGoal, expiredCount, expiringSoonCount)}</Text>
@@ -247,9 +247,13 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
         >
           <Text style={styles.donateIcon}>🤝</Text>
           <View style={styles.donateBody}>
-            <Text style={styles.donateTitle}>Donate Expiring Food</Text>
+            <Text style={styles.donateTitle}>
+              {expiringSoonCount > 0 ? "Donate Expiring Food" : "Donate Food"}
+            </Text>
             <Text style={styles.donateDesc}>
-              {expiringSoonCount} item{expiringSoonCount !== 1 ? "s" : ""} expiring soon. List them for donation instead of wasting.
+              {expiringSoonCount > 0
+                ? `${expiringSoonCount} item${expiringSoonCount !== 1 ? "s" : ""} expiring soon. List them for donation instead of wasting.`
+                : "Have surplus food? List it for donation to reduce waste."}
             </Text>
           </View>
         </TouchableOpacity>

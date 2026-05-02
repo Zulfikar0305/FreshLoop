@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, getDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { getUserInventory } from "../services/inventoryService";
 import { useTheme } from "../context/ThemeContext";
@@ -92,6 +92,8 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const { colors: c } = useTheme();
   const styles = getStyles(c);
 
+  const [resolvedConsent, setResolvedConsent] = useState<boolean>(analyticsConsent);
+
   const [totalUsed, setTotalUsed] = useState(0);
   const [totalWasted, setTotalWasted] = useState(0);
   const [totalSavedValue, setTotalSavedValue] = useState(0);
@@ -116,6 +118,17 @@ export default function AnalyticsScreen({ navigation, route }: any) {
       }
 
       try {
+        // Always fetch fresh consent from Firestore
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setResolvedConsent(userDoc.data().analyticsConsent === true);
+          // Early-exit for home/coordinator if consent not granted
+          if (!isBusiness && userDoc.data().analyticsConsent !== true) {
+            setLoading(false);
+            return;
+          }
+        }
+
         if (isBusiness) {
           // Business: show donation impact stats
           const donQ = query(
@@ -205,7 +218,7 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   }
 
   // Analytics consent gate (home users only — business always sees their donation stats)
-  if (!isBusiness && !analyticsConsent) {
+  if (!isBusiness && !resolvedConsent) {
     return (
       <View style={styles.outerContainer}>
         <View style={styles.centered}>

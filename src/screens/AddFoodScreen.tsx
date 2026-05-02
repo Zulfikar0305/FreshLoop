@@ -536,14 +536,14 @@ export default function AddFoodScreen({ navigation, route }: any) {
           {/* ── Scan Receipt / Photo button ── */}
           {bulkScanUri ? (
             <View style={styles.bulkScanPreview}>
-              <Text style={styles.bulkScanHelper}>📷 Scan-assisted entry: confirm or edit items before saving.</Text>
+              <Text style={styles.bulkScanHelper}>Receipt captured. Enter or confirm detected items and expiry dates.</Text>
             </View>
           ) : (
             <TouchableOpacity
               style={styles.bulkScanButton}
               onPress={() => { setCameraMode("bulk"); handleOpenCamera(); }}
             >
-              <Text style={styles.bulkScanButtonText}>📷  Scan Receipt or Multiple Items</Text>
+              <Text style={styles.bulkScanButtonText}>📷  Receipt Scan Assistant</Text>
             </TouchableOpacity>
           )}
 
