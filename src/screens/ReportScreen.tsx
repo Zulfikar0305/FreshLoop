@@ -20,7 +20,7 @@ const ISSUE_TYPES: { value: IssueType; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-export default function ReportScreen() {
+export default function ReportScreen({ navigation }: any) {
   const [issueType, setIssueType] = useState<IssueType>("user");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +58,9 @@ export default function ReportScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Text style={styles.backButtonText}>← Back</Text>
+      </TouchableOpacity>
       <Text style={styles.title}>Report an Issue</Text>
 
       <Text style={styles.label}>Issue Type</Text>
@@ -111,6 +114,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     padding: 20,
     paddingBottom: 48,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    marginBottom: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  backButtonText: {
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: "600",
   },
   title: {
     fontSize: 26,
