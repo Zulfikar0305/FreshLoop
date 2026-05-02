@@ -234,7 +234,14 @@ export default function LoginScreen({ navigation }: any) {
           </>
         )}
         {biometricSupported && !biometricEnabled && (
-          <Text style={styles.helpText}>Biometrics are available after your first successful login on this device.</Text>
+          <Text style={styles.helpText}>
+            👁‍🗨 Biometrics: Login once with email/password to enable biometric quick login.
+          </Text>
+        )}
+        {!biometricSupported && (
+          <Text style={styles.helpText}>
+            👁‍🗨 Biometrics: Login once with email/password to enable biometric quick login.
+          </Text>
         )}
 
         {GOOGLE_CONFIGURED ? (
@@ -249,9 +256,12 @@ export default function LoginScreen({ navigation }: any) {
           </TouchableOpacity>
         ) : (
           <View style={styles.googleButtonUnconfigured}>
-            <Text style={styles.googleButtonUnconfiguredText}>Google Sign-In not configured for Android yet.</Text>
+            <Text style={styles.googleButtonUnconfiguredText}>Google Sign-In not yet enabled.</Text>
           </View>
         )}
+        <Text style={styles.helpText}>
+          🔗 Google: Google Sign-In requires Android OAuth client setup in Firebase Console.
+        </Text>
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Register")}>
           <Text style={styles.linkText}>Don't have an account? Register</Text>

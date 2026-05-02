@@ -115,28 +115,19 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
   const showDonateCard = role === "home";
 
   const homeCards: CardItem[] = [
-    { icon: "🍎", title: "Add Food",         desc: "Track new pantry items",          screen: "AddFood" },
-    { icon: "📦", title: "Inventory",         desc: "Browse what you have",            screen: "Inventory" },
-    { icon: "📊", title: "Analytics",         desc: "View waste statistics",          screen: "Analytics" },
-    { icon: "💡", title: "Suggestions",       desc: "Smart meal tips",                screen: "Suggestions" },
-    { icon: "🤖", title: "FreshBot",          desc: "AI pantry advisor",             screen: "Suggestions" },
-    { icon: "📋", title: "Scan / Bulk Add",   desc: "Add multiple items at once",    screen: "AddFood", params: { mode: "bulk" } },
-    { icon: "👤", title: "Profile",           desc: "Edit your details",             screen: "Profile" },
-    { icon: "🚨", title: "Report",            desc: "Flag an issue",                screen: "Report" },
+    { icon: "🍎", title: "Add Item",   desc: "Track new pantry items",   screen: "AddFood" },
+    { icon: "📦", title: "Pantry",     desc: "Browse what you have",     screen: "Inventory" },
+    { icon: "🤖", title: "FreshBot",   desc: "AI pantry advisor",        screen: "Suggestions" },
   ];
 
   const businessCards: CardItem[] = [
-    { icon: "🎁", title: "Donate Food",  desc: "List surplus food",          screen: "CreateDonation" },
-    { icon: "📋", title: "Donations",    desc: "View all listings",          screen: "DonationsList" },
-    { icon: "📊", title: "Analytics",    desc: "View waste statistics",      screen: "Analytics" },
-    { icon: "👤", title: "Profile",      desc: "Edit your details",          screen: "Profile" },
-    { icon: "🚨", title: "Report",       desc: "Flag an issue",              screen: "Report" },
+    { icon: "🎁", title: "Add Surplus",   desc: "List surplus food for donation",  screen: "CreateDonation" },
+    { icon: "📋", title: "My Donations",  desc: "View your listings",              screen: "DonationsList" },
   ];
 
   const coordinatorCards: CardItem[] = [
-    { icon: "📋", title: "Donations",  desc: "Claim & manage food",  screen: "DonationsList" },
-    { icon: "👤", title: "Profile",    desc: "Edit your details",    screen: "Profile" },
-    { icon: "🚨", title: "Report",     desc: "Flag an issue",        screen: "Report" },
+    { icon: "📋", title: "View Donations", desc: "Claim & manage food",  screen: "DonationsList" },
+    { icon: "🚨", title: "Report Issue",   desc: "Flag a problem",       screen: "Report" },
   ];
 
   const cards =

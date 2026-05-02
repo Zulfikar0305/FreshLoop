@@ -17,6 +17,9 @@ import type { ThemeColors } from "../theme/colors";
 const DONATION_UNIT_OPTIONS = ["item", "pack", "kg", "L", "box", "pallet"] as const;
 type DonationUnit = typeof DONATION_UNIT_OPTIONS[number];
 
+const STORAGE_CONDITIONS = ["Ambient", "Chilled", "Frozen"] as const;
+type StorageCondition = typeof STORAGE_CONDITIONS[number] | "";
+
 type Coords = { latitude: number; longitude: number } | null;
 
 export default function CreateDonationScreen({ navigation, route }: any) {
@@ -34,6 +37,10 @@ export default function CreateDonationScreen({ navigation, route }: any) {
   const [unit, setUnit] = useState<DonationUnit | "">("item");
   const [description, setDescription] = useState("");
   const [pickupInstructions, setPickupInstructions] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [storageCondition, setStorageCondition] = useState<StorageCondition>("");
+  const [pickupWindow, setPickupWindow] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [coords, setCoords] = useState<Coords>(null);
   const [locating, setLocating] = useState(false);
@@ -92,6 +99,10 @@ export default function CreateDonationScreen({ navigation, route }: any) {
         unit: unit || "item",
         description: description.trim(),
         pickupInstructions: pickupInstructions.trim(),
+        ...(expiryDate.trim() ? { expiryDate: expiryDate.trim() } : {}),
+        ...(storageCondition ? { storageCondition } : {}),
+        ...(pickupWindow.trim() ? { pickupWindow: pickupWindow.trim() } : {}),
+        ...(pickupAddress.trim() ? { pickupAddress: pickupAddress.trim() } : {}),
         status: "available",
         role,
         createdAt: serverTimestamp(),
@@ -167,12 +178,47 @@ export default function CreateDonationScreen({ navigation, route }: any) {
 
       {isBusiness && (
         <>
+          <Text style={styles.label}>Best-Before / Expiry Date</Text>
+          <Text style={styles.hint}>Format: YYYY-MM-DD (e.g. 2026-06-15). Leave blank if unknown.</Text>
+          <TextInput
+            value={expiryDate}
+            onChangeText={setExpiryDate}
+            placeholder="e.g. 2026-06-15"
+            keyboardType="numeric"
+            maxLength={10}
+            placeholderTextColor="#aaa"
+            style={styles.input}
+          />
+
+          <Text style={styles.label}>Storage Condition</Text>
+          <View style={styles.chipRow}>
+            {STORAGE_CONDITIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.chip, storageCondition === opt && styles.chipActive]}
+                onPress={() => setStorageCondition(storageCondition === opt ? "" : opt)}
+              >
+                <Text style={[styles.chipText, storageCondition === opt && styles.chipTextActive]}>{opt}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Pickup Window</Text>
+          <Text style={styles.hint}>When can coordinators collect?</Text>
+          <TextInput
+            value={pickupWindow}
+            onChangeText={setPickupWindow}
+            placeholder="e.g. Mon–Fri 8am–4pm"
+            placeholderTextColor="#aaa"
+            style={styles.input}
+          />
+
           <Text style={styles.label}>Pickup Instructions</Text>
-          <Text style={styles.hint}>Where and how can the coordinator collect? Include times if relevant.</Text>
+          <Text style={styles.hint}>Where and how can the coordinator collect?</Text>
           <TextInput
             value={pickupInstructions}
             onChangeText={setPickupInstructions}
-            placeholder="e.g. Collect from back entrance, weekdays 8am–4pm. Ask for Manager."
+            placeholder="e.g. Collect from back entrance. Ask for Manager."
             placeholderTextColor="#aaa"
             multiline
             numberOfLines={3}
@@ -184,8 +230,8 @@ export default function CreateDonationScreen({ navigation, route }: any) {
       <Text style={styles.label}>Pickup Location</Text>
       <Text style={styles.hint}>
         {userData?.locationConsent === true
-          ? "Recommended — helps coordinators plan collection routes."
-          : "Enable location in Profile to use GPS features."}
+          ? "Use GPS or enter your address for coordinators to find you."
+          : "Enable location in Profile to use GPS, or enter your address manually."}
       </Text>
       <TouchableOpacity
         style={[styles.locationButton, (locating || userData?.locationConsent !== true) && styles.locationButtonDisabled]}
@@ -196,6 +242,15 @@ export default function CreateDonationScreen({ navigation, route }: any) {
           {locating ? "Getting location..." : coords ? `📍 Location set (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})` : "📍 Use My Current Location"}
         </Text>
       </TouchableOpacity>
+
+      <Text style={styles.hint}>Or enter your address manually:</Text>
+      <TextInput
+        value={pickupAddress}
+        onChangeText={setPickupAddress}
+        placeholder="e.g. 12 Main Road, Cape Town, 8001"
+        placeholderTextColor="#aaa"
+        style={styles.input}
+      />
 
       <TouchableOpacity
         style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}

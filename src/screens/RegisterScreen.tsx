@@ -74,8 +74,15 @@ export default function RegisterScreen({ navigation }: any) {
 
       Alert.alert(
         "Account Created!",
-        "Please verify your email for full access. Check your inbox for a verification link.",
-        [{ text: "OK", onPress: () => navigation.navigate("Login") }]
+        "Your account has been created. Please verify your email when you get a chance.",
+        [{
+          text: "Continue",
+          onPress: () =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "SetupProfile", params: { uid: user.uid, role, fullName: fullName.trim() } }],
+            }),
+        }]
       );
     } catch (error: any) {
       Alert.alert("Registration Error", error.message);

@@ -86,8 +86,6 @@ export default function AddFoodScreen({ navigation, route }: any) {
   const [capturing, setCapturing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [cameraMode, setCameraMode] = useState<"single" | "bulk">("single");
-  const [bulkScanUri, setBulkScanUri] = useState<string | null>(null);
 
   // Barcode scanner state
   const [barcodeOpen, setBarcodeOpen] = useState(false);
@@ -123,11 +121,7 @@ export default function AddFoodScreen({ navigation, route }: any) {
     try {
       const photo = await cameraRef.current.takePictureAsync();
       if (photo?.uri) {
-        if (cameraMode === "bulk") {
-          setBulkScanUri(photo.uri);
-        } else {
-          setPhotoUri(photo.uri);
-        }
+        setPhotoUri(photo.uri);
         setCameraOpen(false);
       } else {
         Alert.alert("Error", "Photo could not be captured. Please try again.");
@@ -407,7 +401,7 @@ export default function AddFoodScreen({ navigation, route }: any) {
           onPress={() => setMode("bulk")}
         >
           <Text style={[styles.toggleButtonText, mode === "bulk" && styles.toggleButtonTextActive]}>
-            Smart Scan / Bulk Add
+            Bulk Entry Assistant
           </Text>
         </TouchableOpacity>
       </View>
@@ -514,9 +508,9 @@ export default function AddFoodScreen({ navigation, route }: any) {
       {/* ── Bulk Add Mode ── */}
       {mode === "bulk" && (
         <>
-          <Text style={styles.bulkSubtitle}>Enter multiple items at once</Text>
+          <Text style={styles.bulkSubtitle}>Quickly add multiple items after shopping</Text>
           <Text style={styles.barcodeNote}>
-            Barcode scan identifies the product. Expiry date must still be entered manually.
+            Use barcode scan to identify products. Fill in expiry dates and quantities manually.
           </Text>
 
           {/* ── Scan Product Barcode ── */}
@@ -531,20 +525,6 @@ export default function AddFoodScreen({ navigation, route }: any) {
                 <Text style={styles.barcodeValueText}>Barcode: {lastBarcode}</Text>
               )}
             </View>
-          )}
-
-          {/* ── Scan Receipt / Photo button ── */}
-          {bulkScanUri ? (
-            <View style={styles.bulkScanPreview}>
-              <Text style={styles.bulkScanHelper}>Receipt captured. Enter or confirm detected items and expiry dates.</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.bulkScanButton}
-              onPress={() => { setCameraMode("bulk"); handleOpenCamera(); }}
-            >
-              <Text style={styles.bulkScanButtonText}>📷  Receipt Scan Assistant</Text>
-            </TouchableOpacity>
           )}
 
           {bulkRows.map((row, index) => (

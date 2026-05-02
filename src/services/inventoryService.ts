@@ -92,3 +92,10 @@ export async function updateItemStatus(
 ): Promise<void> {
   await updateDoc(doc(db, "inventoryItems", itemId), { status });
 }
+
+export async function updateItemQuantity(
+  itemId: string,
+  quantity: number
+): Promise<void> {
+  await updateDoc(doc(db, "inventoryItems", itemId), { quantity });
+}

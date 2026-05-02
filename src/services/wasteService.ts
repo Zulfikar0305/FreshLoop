@@ -7,12 +7,13 @@ type WasteStatus = "used" | "wasted";
 export async function createWasteLog(
   item: InventoryItem,
   userId: string,
-  status: WasteStatus
+  status: WasteStatus,
+  quantityOverride?: number
 ): Promise<void> {
   await addDoc(collection(db, "wasteLogs"), {
     userId,
     itemName: item.name,
-    quantity: item.quantity,
+    quantity: quantityOverride ?? item.quantity,
     unit: item.unit,
     expiryDate: item.expiryDate ?? null,
     price: typeof item.price === "number" ? item.price : 0,

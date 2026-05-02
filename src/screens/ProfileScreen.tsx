@@ -270,6 +270,23 @@ export default function ProfileScreen({ navigation, route }: any) {
             <View style={styles.roleBadgeRow}>
               <Text style={styles.roleBadge}>{roleLabel}</Text>
             </View>
+
+            {/* Preferences Active summary card — home users only */}
+            {role === "home" && (profile.cookingSkill || profile.reminderWindowDays || profile.wasteGoal) && (
+              <View style={styles.prefCard}>
+                <Text style={styles.prefCardTitle}>✅ Preferences Active</Text>
+                {profile.cookingSkill ? (
+                  <Text style={styles.prefItem}>🍳 Cooking Skill: {profile.cookingSkill.charAt(0).toUpperCase() + profile.cookingSkill.slice(1)}</Text>
+                ) : null}
+                {profile.reminderWindowDays ? (
+                  <Text style={styles.prefItem}>⏰ Reminder Window: {profile.reminderWindowDays} day{profile.reminderWindowDays !== "1" ? "s" : ""}</Text>
+                ) : null}
+                {profile.wasteGoal ? (
+                  <Text style={styles.prefItem}>🎯 Waste Goal: {profile.wasteGoal === "save_money" ? "💰 Save Money" : profile.wasteGoal === "reduce_waste" ? "♻️ Reduce Waste" : "🤝 Donate More"}</Text>
+                ) : null}
+                <Text style={styles.prefHint}>These preferences personalise your suggestions and expiry alerts.</Text>
+              </View>
+            )}
             <Text style={styles.label}>Full Name</Text>
             <TextInput
               value={profile.fullName}
@@ -752,6 +769,37 @@ function getStyles(c: ThemeColors) {
   },
   chipTextActive: {
     color: "#fff",
+  },
+  prefCard: {
+    backgroundColor: c.card,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 18,
+    borderLeftWidth: 4,
+    borderLeftColor: c.primary,
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  prefCardTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: c.primary,
+    marginBottom: 8,
+  },
+  prefItem: {
+    fontSize: 13,
+    color: c.text,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  prefHint: {
+    fontSize: 11,
+    color: c.textMuted,
+    marginTop: 6,
+    lineHeight: 16,
   },
 });
 }

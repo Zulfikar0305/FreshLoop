@@ -68,6 +68,7 @@ type ItemForNotification = {
   id: string;
   name: string;
   expiryDate: Date | null;
+  status?: string;
 };
 
 function getDaysRemaining(expiryDate: Date): number {
@@ -86,6 +87,8 @@ export async function scheduleExpiryNotifications(
   const ids = await getNotifiedIds();
 
   for (const item of items) {
+    // Do not notify for used or wasted items
+    if (item.status === "used" || item.status === "wasted") continue;
     if (!item.expiryDate) continue;
 
     const days = getDaysRemaining(item.expiryDate);

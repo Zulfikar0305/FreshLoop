@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
+  Modal,
+  TextInput,
 } from "react-native";
 import { auth } from "../firebase/firebaseConfig";
 import { createWasteLog } from "../services/wasteService";
@@ -15,6 +17,7 @@ import { scheduleExpiryNotifications } from "../services/notificationService";
 import {
   getUserInventory,
   updateItemStatus,
+  updateItemQuantity,
   type InventoryItem,
 } from "../services/inventoryService";
 import { useTheme } from "../context/ThemeContext";
@@ -59,6 +62,9 @@ export default function InventoryScreen({ navigation, route }: any) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "expiring" | "used" | "wasted">("all");
 
+  type PartialModal = { visible: boolean; item: InventoryItem | null; status: "used" | "wasted"; qty: string };
+  const [partialModal, setPartialModal] = useState<PartialModal>({ visible: false, item: null, status: "used", qty: "" });
+
   const fetchItems = async () => {
     setLoading(true);
     const currentUser = auth.currentUser;
@@ -83,9 +89,47 @@ export default function InventoryScreen({ navigation, route }: any) {
     fetchItems();
   }, []);
 
+  const doPartialUpdate = async () => {
+    const { item, status, qty } = partialModal;
+    if (!item) return;
+    const parsed = parseFloat(qty);
+    if (isNaN(parsed) || parsed <= 0) {
+      Alert.alert("Invalid", "Please enter a quantity greater than 0.");
+      return;
+    }
+    if (parsed > item.quantity) {
+      Alert.alert("Invalid", `Maximum is ${item.quantity} ${item.unit || "unit(s)"}.`);
+      return;
+    }
+    setPartialModal((m) => ({ ...m, visible: false }));
+    setUpdatingId(item.id);
+    const currentUser = auth.currentUser;
+    if (!currentUser) { Alert.alert("Error", "Not logged in."); setUpdatingId(null); return; }
+    try {
+      await createWasteLog(item, currentUser.uid, status, parsed);
+      if (parsed >= item.quantity) {
+        await updateItemStatus(item.id, status);
+        setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status } : i)));
+      } else {
+        const newQty = item.quantity - parsed;
+        await updateItemQuantity(item.id, newQty);
+        setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: newQty } : i)));
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setUpdatingId(null);
+      setPartialModal({ visible: false, item: null, status: "used", qty: "" });
+    }
+  };
+
   const handleStatusUpdate = (item: InventoryItem, status: "used" | "wasted") => {
     if (item.status !== "active") {
       Alert.alert("Already updated", `This item has already been marked as ${item.status}.`);
+      return;
+    }
+    if (item.quantity > 1) {
+      setPartialModal({ visible: true, item, status, qty: "" });
       return;
     }
     Alert.alert(
@@ -134,8 +178,58 @@ export default function InventoryScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.outerContainer}>
+      {/* Partial Quantity Modal */}
+      <Modal
+        visible={partialModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPartialModal({ visible: false, item: null, status: "used", qty: "" })}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {partialModal.status === "used" ? "How many units used?" : "How many units wasted?"}
+            </Text>
+            <Text style={styles.modalBody}>
+              {partialModal.item?.name} — {partialModal.item?.quantity} {partialModal.item?.unit || "unit(s)"} available
+            </Text>
+            <TextInput
+              value={partialModal.qty}
+              onChangeText={(v) => setPartialModal((m) => ({ ...m, qty: v.replace(/[^0-9.]/g, "") }))}
+              keyboardType="numeric"
+              placeholder={`1 – ${partialModal.item?.quantity}`}
+              placeholderTextColor="#aaa"
+              style={styles.modalInput}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setPartialModal({ visible: false, item: null, status: "used", qty: "" })}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirm, partialModal.status === "wasted" && styles.modalConfirmWaste]}
+                onPress={doPartialUpdate}
+              >
+                <Text style={styles.modalConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.headerArea}>
-        <Text style={styles.title}>My Inventory</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>My Inventory</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate("AddFood", { userData })}
+          >
+            <Text style={styles.addButtonText}>+ Add Item</Text>
+          </TouchableOpacity>
+        </View>
         {/* Filter row */}
         <View style={styles.filterRow}>
           {(["all", "expiring", "used", "wasted"] as const).map((f) => (
@@ -259,7 +353,6 @@ function getStyles(c: ThemeColors) {
     fontSize: 26,
     fontWeight: "800",
     color: c.text,
-    marginBottom: 16,
   },
   empty: {
     textAlign: "center",
@@ -346,6 +439,101 @@ function getStyles(c: ThemeColors) {
   },
   filterTabTextActive: {
     color: "#fff",
+  },
+  // Header row with Add button
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  addButton: {
+    backgroundColor: c.primary,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  // Partial modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: c.card,
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: c.text,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalBody: {
+    fontSize: 14,
+    color: c.textMuted,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  modalInput: {
+    backgroundColor: c.background,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 18,
+    fontWeight: "700",
+    color: c.text,
+    textAlign: "center",
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: c.border,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalCancel: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: c.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    color: c.textMuted,
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  modalConfirm: {
+    flex: 1,
+    backgroundColor: c.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalConfirmWaste: {
+    backgroundColor: c.danger,
+  },
+  modalConfirmText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
 }

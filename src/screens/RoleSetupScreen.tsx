@@ -46,7 +46,10 @@ export default function RoleSetupScreen({ navigation, route }: any) {
         analyticsConsent: false,
       };
       await setDoc(doc(db, "users", uid), { ...userData, createdAt: serverTimestamp() });
-      navigation.reset({ index: 0, routes: [{ name: "HomeDashboard", params: { userData } }] });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "SetupProfile", params: { uid, role, fullName } }],
+      });
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {
