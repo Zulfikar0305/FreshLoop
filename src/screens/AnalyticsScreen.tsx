@@ -5,6 +5,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
@@ -103,6 +104,7 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const [completedDonations, setCompletedDonations] = useState(0);
   const [totalQtyDonated, setTotalQtyDonated] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [riskDismissed, setRiskDismissed] = useState(false);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -275,6 +277,10 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const efficiencyRate = totalItems === 0 ? 0 : (totalUsed / totalItems) * 100;
   const wasteRate = totalItems === 0 ? 0 : (totalWasted / totalItems) * 100;
 
+  const prediction = computePrediction(expiredNow, expiringSoon, activeTotal, wasteRate);
+  const riskColor = RISK_COLOR[prediction.risk];
+  const showHighRiskModal = !riskDismissed && prediction.risk === "High";
+
   const efficiencyColor =
     efficiencyRate >= 70 ? "#27ae60" : efficiencyRate >= 40 ? "#e67e22" : "#e74c3c";
 
@@ -334,7 +340,6 @@ export default function AnalyticsScreen({ navigation, route }: any) {
 
       {/* ══ AI Waste Prediction ══ */}
       {(() => {
-        const prediction = computePrediction(expiredNow, expiringSoon, activeTotal, wasteRate);
         const riskColor = RISK_COLOR[prediction.risk];
         return (
           <View style={styles.predictionSection}>
@@ -389,6 +394,40 @@ export default function AnalyticsScreen({ navigation, route }: any) {
         );
       })()}
     </ScrollView>
+
+    {/* ══ High Waste Risk bottom-sheet modal ══ */}
+    <Modal
+      visible={showHighRiskModal}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setRiskDismissed(true)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.modalIcon}>⚠️</Text>
+          <Text style={styles.modalTitle}>High Waste Risk</Text>
+          <Text style={styles.modalBody}>
+            You have items close to expiry. Use, freeze, or donate them today.
+          </Text>
+          <TouchableOpacity
+            style={styles.modalActionPrimary}
+            onPress={() => { setRiskDismissed(true); navigation.navigate("Inventory", { userData }); }}
+          >
+            <Text style={styles.modalActionPrimaryText}>View Pantry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.modalActionSecondary}
+            onPress={() => { setRiskDismissed(true); navigation.navigate("CreateDonation", { userData }); }}
+          >
+            <Text style={styles.modalActionSecondaryText}>🤝 Donate Now</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.modalDismiss} onPress={() => setRiskDismissed(true)}>
+            <Text style={styles.modalDismissText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+
     <BottomNav navigation={navigation} active="Analytics" role={role} userData={userData} />
     </View>
   );
@@ -421,6 +460,72 @@ function getStyles(c: ThemeColors) {
     fontSize: 14,
     color: c.textMuted,
     marginBottom: 20,
+  },
+  // ── High Waste Risk modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: c.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 28,
+    paddingBottom: 40,
+    alignItems: "center",
+  },
+  modalIcon: {
+    fontSize: 44,
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: c.text,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  modalBody: {
+    fontSize: 14,
+    color: c.textMuted,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalActionPrimary: {
+    backgroundColor: c.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    width: "100%",
+    marginBottom: 10,
+  },
+  modalActionPrimaryText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  modalActionSecondary: {
+    backgroundColor: c.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    width: "100%",
+    marginBottom: 10,
+  },
+  modalActionSecondaryText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  modalDismiss: {
+    paddingVertical: 10,
+  },
+  modalDismissText: {
+    color: c.textMuted,
+    fontSize: 14,
+    fontWeight: "500",
   },
   consentIcon: {
     fontSize: 48,
