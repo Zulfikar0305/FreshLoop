@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../firebase/firebaseConfig";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
 
 type ProfileData = {
@@ -33,6 +34,10 @@ export default function ProfileScreen({ navigation, route }: any) {
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business" ? "business" :
     userData?.role === "coordinator" ? "coordinator" : "home";
+
+  const { colors: c, mode, toggleTheme } = useTheme();
+  const styles = getStyles(c);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
@@ -273,6 +278,16 @@ export default function ProfileScreen({ navigation, route }: any) {
         />
       </View>
 
+      <View style={styles.row}>
+        <Text style={styles.switchLabel}>🌙 Dark Mode</Text>
+        <Switch
+          value={mode === "dark"}
+          onValueChange={toggleTheme}
+          trackColor={{ false: "#ccc", true: c.primary }}
+          thumbColor="#fff"
+        />
+      </View>
+
       <TouchableOpacity
         style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
         onPress={handleSave}
@@ -292,13 +307,14 @@ export default function ProfileScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 20,
     paddingBottom: 48,
   },
@@ -306,26 +322,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 24,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -337,7 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -350,11 +366,11 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 15,
-    color: COLORS.text,
+    color: c.text,
     fontWeight: "500",
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -370,7 +386,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     borderWidth: 1.5,
-    borderColor: COLORS.danger,
+    borderColor: c.danger,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
@@ -378,7 +394,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   logoutButtonText: {
-    color: COLORS.danger,
+    color: c.danger,
     fontSize: 15,
     fontWeight: "700",
   },
@@ -390,20 +406,21 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: c.primary,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   chipActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   chipText: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: c.primary,
     fontWeight: "600",
   },
   chipTextActive: {
     color: "#fff",
   },
 });
+}

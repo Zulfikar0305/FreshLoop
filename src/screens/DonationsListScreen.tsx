@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
 
 type Donation = {
@@ -64,6 +65,10 @@ export default function DonationsListScreen({ navigation, route }: any) {
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business" ? "business" :
     userData?.role === "coordinator" ? "coordinator" : "home";
+
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const [donations, setDonations] = useState<Donation[]>([]);
   const [claimedDonations, setClaimedDonations] = useState<Donation[]>([]);
   const [completedDonations, setCompletedDonations] = useState<Donation[]>([]);
@@ -341,13 +346,14 @@ export default function DonationsListScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 20,
     paddingBottom: 48,
   },
@@ -355,12 +361,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 20,
   },
   // Section headings
@@ -368,7 +374,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: c.primary,
     paddingLeft: 10,
     marginTop: 24,
     marginBottom: 12,
@@ -377,7 +383,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 16,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     flex: 1,
   },
   // Status badges
@@ -387,18 +393,18 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   badgeAvailable: {
-    backgroundColor: "#d1fae5",
+    backgroundColor: "rgba(34,197,94,0.18)",
   },
   badgeClaimed: {
-    backgroundColor: "#dbeafe",
+    backgroundColor: "rgba(59,130,246,0.18)",
   },
   badgeCompleted: {
-    backgroundColor: "#e0e7ff",
+    backgroundColor: "rgba(99,102,241,0.18)",
   },
   badgeText: {
     fontSize: 12,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
   },
   // Card variants
   cardTopRow: {
@@ -409,16 +415,16 @@ const styles = StyleSheet.create({
   },
   cardClaimed: {
     borderLeftWidth: 4,
-    borderLeftColor: "#3b82f6",
+    borderLeftColor: c.primary,
   },
   cardCompleted: {
     borderLeftWidth: 4,
-    borderLeftColor: "#6366f1",
+    borderLeftColor: c.purple,
     opacity: 0.85,
   },
   // Empty states
   emptyCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 24,
     alignItems: "center",
@@ -436,45 +442,45 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 4,
   },
   emptyDesc: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     textAlign: "center",
     lineHeight: 19,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 4,
   },
   foodName: {
     fontSize: 17,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 4,
   },
   detail: {
     fontSize: 14,
-    color: "#666",
+    color: c.textMuted,
     marginBottom: 2,
   },
   description: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginTop: 4,
   },
   location: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginTop: 4,
   },
   mapsButton: {
@@ -484,16 +490,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: c.primary,
   },
   mapsButtonText: {
     fontSize: 12,
     fontWeight: "600",
-    color: COLORS.primary,
+    color: c.primary,
   },
   claimButton: {
     marginTop: 12,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
@@ -508,7 +514,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     marginTop: 12,
-    backgroundColor: COLORS.accent,
+    backgroundColor: c.accent,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
@@ -535,3 +541,4 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 });
+}

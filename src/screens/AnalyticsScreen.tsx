@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { getUserInventory } from "../services/inventoryService";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
 
 type RiskLevel = "Low" | "Medium" | "High";
@@ -83,6 +84,10 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business" ? "business" :
     userData?.role === "coordinator" ? "coordinator" : "home";
+
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const [totalUsed, setTotalUsed] = useState(0);
   const [totalWasted, setTotalWasted] = useState(0);
   const [totalSavedValue, setTotalSavedValue] = useState(0);
@@ -261,21 +266,21 @@ export default function AnalyticsScreen({ navigation, route }: any) {
               {activeTotal > 0 && (
                 <View style={styles.predictionStats}>
                   {expiredNow > 0 && (
-                    <View style={[styles.predictionStatPill, { backgroundColor: "#fde8e8" }]}>
-                      <Text style={[styles.predictionStatText, { color: "#e74c3c" }]}>
+                    <View style={[styles.predictionStatPill, { backgroundColor: "rgba(239,68,68,0.15)" }]}>
+                      <Text style={[styles.predictionStatText, { color: c.danger }]}>
                         {expiredNow} expired
                       </Text>
                     </View>
                   )}
                   {expiringSoon > 0 && (
-                    <View style={[styles.predictionStatPill, { backgroundColor: "#fef4e4" }]}>
-                      <Text style={[styles.predictionStatText, { color: "#e67e22" }]}>
+                    <View style={[styles.predictionStatPill, { backgroundColor: "rgba(245,158,11,0.15)" }]}>
+                      <Text style={[styles.predictionStatText, { color: c.warning }]}>
                         {expiringSoon} expiring soon
                       </Text>
                     </View>
                   )}
-                  <View style={[styles.predictionStatPill, { backgroundColor: "#eaf7ee" }]}>
-                    <Text style={[styles.predictionStatText, { color: "#27ae60" }]}>
+                  <View style={[styles.predictionStatPill, { backgroundColor: "rgba(34,197,94,0.15)" }]}>
+                    <Text style={[styles.predictionStatText, { color: c.success }]}>
                       {activeTotal} tracked
                     </Text>
                   </View>
@@ -291,13 +296,14 @@ export default function AnalyticsScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 20,
     paddingBottom: 40,
   },
@@ -305,12 +311,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 20,
   },
   grid: {
@@ -321,18 +327,18 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "47%",
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 4,
   },
   label: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginBottom: 6,
     fontWeight: "500",
   },
@@ -341,21 +347,23 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   usedColor: {
-    color: COLORS.primary,
+    color: c.primary,
   },
   wastedColor: {
-    color: COLORS.danger,
+    color: c.danger,
   },
   insightCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 20,
     marginTop: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: c.primary,
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 5,
     alignItems: "center",
   },
   insightMessage: {
@@ -370,25 +378,25 @@ const styles = StyleSheet.create({
   },
   predictionHeaderRow: {
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: c.primary,
     paddingLeft: 10,
     marginBottom: 14,
   },
   predictionTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
   },
   predictionCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 20,
     borderLeftWidth: 5,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   predictionRiskRow: {
     flexDirection: "row",
@@ -401,7 +409,7 @@ const styles = StyleSheet.create({
   },
   predictionRiskLabel: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     fontWeight: "500",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -413,20 +421,20 @@ const styles = StyleSheet.create({
   },
   predictionDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: c.border,
     marginVertical: 14,
   },
   predictionFieldLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: COLORS.textMuted,
+    color: c.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 4,
   },
   predictionFieldValue: {
     fontSize: 14,
-    color: COLORS.text,
+    color: c.text,
     lineHeight: 21,
   },
   predictionStats: {
@@ -445,3 +453,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+}

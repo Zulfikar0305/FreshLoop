@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Text, View, TouchableOpacity, ScrollView, StyleSheet, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { getUserInventory } from "../services/inventoryService";
 import { scheduleTestNotification, isExpoGo } from "../services/notificationService";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
 
 type CardItem = {
@@ -50,6 +51,9 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
       : role === "coordinator"
       ? "NPO Coordinator"
       : "Home User";
+
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
 
   const [expiredCount, setExpiredCount] = useState(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState(0);
@@ -219,29 +223,30 @@ export default function HomeDashboardScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 20,
     paddingBottom: 40,
   },
   welcomeCard: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 20,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
     marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 12,
   },
   welcomeLogoImg: {
     width: 56,
@@ -251,7 +256,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greeting: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "800",
     color: "#fff",
   },
@@ -267,9 +272,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 14,
   },
   grid: {
@@ -279,7 +284,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "47%",
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
@@ -295,12 +300,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 4,
   },
   cardDesc: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     lineHeight: 17,
   },
 
@@ -316,14 +321,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   alertCardWarn: {
-    backgroundColor: "#fffbeb",
+    backgroundColor: c.card,
     borderLeftWidth: 4,
-    borderLeftColor: "#f59e0b",
+    borderLeftColor: c.warning,
   },
   alertCardOk: {
-    backgroundColor: "#f0fdf4",
+    backgroundColor: c.card,
     borderLeftWidth: 4,
-    borderLeftColor: "#22c55e",
+    borderLeftColor: c.success,
   },
   alertRow: {
     flexDirection: "row",
@@ -344,13 +349,13 @@ const styles = StyleSheet.create({
   },
   alertDesc: {
     fontSize: 13,
-    color: COLORS.text,
+    color: c.text,
     lineHeight: 18,
   },
   testBtn: {
     alignSelf: "flex-end",
     marginTop: 10,
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 7,
@@ -361,32 +366,33 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   smartCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 18,
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
+    borderLeftColor: c.primary,
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 5,
   },
   smartTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: COLORS.primary,
+    color: c.primary,
     marginBottom: 6,
   },
   smartTip: {
     fontSize: 13,
-    color: COLORS.text,
+    color: c.text,
     lineHeight: 20,
   },
   smartTipDonate: {
     marginTop: 6,
-    color: "#c2410c",
+    color: c.accent,
     fontWeight: "600",
   },
 });
+}

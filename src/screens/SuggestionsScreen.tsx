@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { getUserInventory, InventoryItem } from "../services/inventoryService";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
 
 // ─── Expiry helpers ───────────────────────────────────────────────────────────
@@ -366,6 +367,10 @@ export default function SuggestionsScreen({ navigation, route }: any) {
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business" ? "business" :
     userData?.role === "coordinator" ? "coordinator" : "home";
+
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<UserPrefs>(DEFAULT_PREFS);
@@ -410,7 +415,7 @@ export default function SuggestionsScreen({ navigation, route }: any) {
     return (
       <View style={styles.outerContainer}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={c.primary} />
         </View>
         <BottomNav navigation={navigation} active="Suggestions" role={role} userData={userData} />
       </View>
@@ -594,10 +599,11 @@ export default function SuggestionsScreen({ navigation, route }: any) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   container: {
     padding: 20,
@@ -607,7 +613,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     padding: 32,
   },
 
@@ -619,13 +625,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     textAlign: "center",
     marginBottom: 10,
   },
   emptyBody: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     textAlign: "center",
     lineHeight: 22,
   },
@@ -634,19 +640,19 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 4,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginBottom: 28,
   },
 
   // Section headings
   sectionHeaderRow: {
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: c.primary,
     paddingLeft: 10,
     marginTop: 8,
     marginBottom: 14,
@@ -654,18 +660,18 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 17,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
   },
   sectionDesc: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginTop: -10,
     marginBottom: 14,
   },
   groupLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.textMuted,
+    color: c.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 8,
@@ -674,19 +680,19 @@ const styles = StyleSheet.create({
 
   // Generic card
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   urgentCard: {
     borderLeftWidth: 4,
-    borderLeftColor: "#e74c3c",
+    borderLeftColor: c.danger,
   },
   cardRow: {
     flexDirection: "row",
@@ -697,7 +703,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: "600",
-    color: COLORS.text,
+    color: c.text,
     flex: 1,
     marginRight: 8,
   },
@@ -713,73 +719,73 @@ const styles = StyleSheet.create({
   },
   cardTip: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     lineHeight: 19,
   },
 
   // All-good banner
   allGoodCard: {
-    backgroundColor: "#e8f8f2",
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: "#27ae60",
+    borderLeftColor: c.success,
   },
   allGoodText: {
     fontSize: 14,
-    color: "#27ae60",
+    color: c.success,
     fontWeight: "600",
   },
 
   // Recipe cards
   recipeCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 18,
     marginBottom: 12,
     borderTopWidth: 3,
-    borderTopColor: COLORS.primary,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
+    borderTopColor: c.primary,
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
   },
   recipeTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 6,
   },
   recipeDesc: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: c.textMuted,
     lineHeight: 19,
     marginBottom: 10,
   },
   recipeIngLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: COLORS.primary,
+    color: c.primary,
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 3,
   },
   recipeIngredients: {
     fontSize: 13,
-    color: COLORS.text,
+    color: c.text,
     fontStyle: "italic",
   },
 
   // Tip cards
   tipCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.accent,
+    borderLeftColor: c.accent,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -788,41 +794,41 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 14,
-    color: COLORS.text,
+    color: c.text,
     lineHeight: 20,
   },
   recipePersonalised: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: c.primary,
     fontWeight: "600",
     marginBottom: 8,
   },
   tipCardGoal: {
-    borderLeftColor: COLORS.primary,
-    backgroundColor: "#f0fdfd",
+    borderLeftColor: c.primary,
+    backgroundColor: c.card,
   },
   donateCard: {
-    backgroundColor: "#fff7ed",
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: "#f97316",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    borderLeftColor: c.accent,
+    shadowColor: c.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 4,
   },
   donateText: {
     fontSize: 14,
-    color: COLORS.text,
+    color: c.text,
     lineHeight: 20,
     marginBottom: 12,
   },
   donateButton: {
     alignSelf: "flex-start",
-    backgroundColor: "#f97316",
+    backgroundColor: c.accent,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -833,3 +839,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+}

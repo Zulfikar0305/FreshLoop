@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import {
   updateItemStatus,
   type InventoryItem,
 } from "../services/inventoryService";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import type { ThemeColors } from "../theme/colors";
 import BottomNav from "../components/BottomNav";
 
 function getDaysRemaining(expiryDate: Date | null): number | null {
@@ -49,6 +50,10 @@ export default function InventoryScreen({ navigation, route }: any) {
   const role: "home" | "business" | "coordinator" =
     userData?.role === "business" ? "business" :
     userData?.role === "coordinator" ? "coordinator" : "home";
+
+  const { colors: c } = useTheme();
+  const styles = getStyles(c);
+
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -174,10 +179,11 @@ export default function InventoryScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(c: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
     paddingHorizontal: 16,
     paddingTop: 20,
   },
@@ -185,40 +191,40 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
+    backgroundColor: c.background,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 16,
   },
   empty: {
     textAlign: "center",
-    color: COLORS.textMuted,
+    color: c.textMuted,
     marginTop: 60,
     fontSize: 16,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 4,
   },
   itemName: {
     fontSize: 17,
     fontWeight: "700",
-    color: COLORS.text,
+    color: c.text,
     marginBottom: 4,
   },
   detail: {
     fontSize: 14,
-    color: "#666",
+    color: c.textMuted,
     marginBottom: 2,
   },
   actions: {
@@ -233,10 +239,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   usedButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: c.primary,
   },
   wasteButton: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: c.danger,
   },
   disabledButton: {
     opacity: 0.35,
@@ -253,3 +259,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 });
+}
