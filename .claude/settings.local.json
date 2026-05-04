@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\SMART AXIS\\\\Desktop\\\\FreshLoop\" -MaxDepth 1 -File | Where-Object { $_.Extension -in @\\('.ts', '.tsx', '.json', '.js'\\) } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\SMART AXIS\\\\Desktop\\\\FreshLoop\" -Depth 0 | Where-Object { -not $_.PSIsContainer } | Select-Object Name)"
+    ]
+  }
+}
