@@ -512,9 +512,14 @@ export default function OperationsMapScreen() {
       Alert.alert('Not signed in', 'Please sign in to claim a donation.');
       return;
     }
+    // session.name is typed string but can be undefined at runtime; build safe fallback
+    const claimedByName =
+      session?.name ||
+      session?.email?.split('@')[0] ||
+      'NPO Coordinator';
     setClaiming(true);
     try {
-      await claimDonation(donation.id, session.userId, session.name);
+      await claimDonation(donation.id, session.userId, claimedByName);
       setSelectedDonation(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Could not claim donation.';

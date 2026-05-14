@@ -179,17 +179,27 @@ export async function claimDonation(
   claimedBy: string,
   claimedByName: string,
 ): Promise<void> {
+  // Phase 2 — auth guard: use live Firebase Auth UID so Firestore rules always pass
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) {
+    throw new Error('Your login session expired. Please sign out and sign in again.');
+  }
+
+  // Sanitize: never write undefined to Firestore
+  const safeClaimedBy   = currentUid;
+  const safeClaimedName = (claimedByName || 'NPO Coordinator').trim() || 'NPO Coordinator';
+
   // Read donor info first so we can send them a claim notification
   const snap = await getDoc(doc(db, 'donations', donationId));
   const donorId  = snap.exists() ? (snap.data().donorId  as string | undefined) : undefined;
   const foodName = snap.exists() ? (snap.data().foodName as string | undefined) : undefined;
 
   await updateDoc(doc(db, 'donations', donationId), {
-    status: 'claimed',
-    claimedBy,
-    claimedByName,
-    claimedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    status:        'claimed',
+    claimedBy:     safeClaimedBy,
+    claimedByName: safeClaimedName,
+    claimedAt:     serverTimestamp(),
+    updatedAt:     serverTimestamp(),
   });
 
   // Notify the donor that their listing was claimed
@@ -197,12 +207,12 @@ export async function claimDonation(
     createNotification(donorId, {
       type:    'claim',
       title:   'Listing claimed! 🎉',
-      message: `${claimedByName} has claimed your ${foodName ?? 'donation'}. Check Pickups for collection details.`,
+      message: `${safeClaimedName} has claimed your ${foodName ?? 'donation'}. Check Pickups for collection details.`,
     }).catch(() => {});
   }
 
   // Notify the NPO/coordinator that their claim was successful
-  createNotification(claimedBy, {
+  createNotification(safeClaimedBy, {
     type:    'claim',
     title:   'Donation claimed ✅',
     message: `You claimed ${foodName ?? 'a donation'}. It is now in Active Pickups.`,
