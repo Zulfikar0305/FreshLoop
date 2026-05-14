@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
+import MapPreview from '../../components/MapPreview';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BusinessStackParamList } from '../../navigation/BusinessUserNavigator';
@@ -54,6 +55,11 @@ export default function ProfileScreen() {
   const [hhOpen,   setHhOpen]   = useState('');
   const [hhClose,  setHhClose]  = useState('');
   const [saving,   setSaving]   = useState(false);
+  const [dockAddress, setDockAddress] = useState('');
+  const [dockLat,     setDockLat]     = useState<number | null>(null);
+  const [dockLng,     setDockLng]     = useState<number | null>(null);
+  const [savingDock,  setSavingDock]  = useState(false);
+  const dockGeocodeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -71,6 +77,9 @@ export default function ProfileScreen() {
       if (Array.isArray(d.staffEmails)) setStaffList(d.staffEmails);
       if (Array.isArray(d.verificationDocuments)) setDocs(d.verificationDocuments as VerificationDoc[]);
       if (d.verificationStatus) setVerificationStatus(d.verificationStatus as string);
+      if (typeof d.loadingDockAddress   === 'string') setDockAddress(d.loadingDockAddress);
+      if (typeof d.loadingDockLatitude  === 'number') setDockLat(d.loadingDockLatitude);
+      if (typeof d.loadingDockLongitude === 'number') setDockLng(d.loadingDockLongitude);
     }).catch(() => {});
   }, []);
 
@@ -93,6 +102,39 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Could not save hours. Please try again.');
     }
     setSaving(false);
+  };
+
+  const geocodeDock = React.useCallback((address: string) => {
+    if (dockGeocodeTimer.current) clearTimeout(dockGeocodeTimer.current);
+    if (!address.trim()) return;
+    dockGeocodeTimer.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'FreshLoop/1.0' } });
+        const json = (await res.json()) as Array<{ lat: string; lon: string }>;
+        if (json[0]) {
+          setDockLat(parseFloat(json[0].lat));
+          setDockLng(parseFloat(json[0].lon));
+        }
+      } catch { /* non-fatal */ }
+    }, 500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveDock = async () => {
+    if (!session?.userId) return;
+    setSavingDock(true);
+    try {
+      await setDoc(doc(db, 'users', session.userId), {
+        loadingDockAddress: dockAddress.trim(),
+        ...(dockLat  !== null ? { loadingDockLatitude:  dockLat  } : {}),
+        ...(dockLng !== null ? { loadingDockLongitude: dockLng } : {}),
+      }, { merge: true });
+      Alert.alert('Saved', 'Loading dock location has been saved.');
+    } catch {
+      Alert.alert('Error', 'Could not save loading dock. Please try again.');
+    }
+    setSavingDock(false);
   };
 
   const storeDetails = [
@@ -343,60 +385,56 @@ export default function ProfileScreen() {
 
         {/* ── Loading dock ── */}
         <SectionLabel text="Loading Dock Location" />
-        <View style={{ ...card, padding: 0, overflow: 'hidden' }}>
-          {/* Map placeholder */}
-          <View style={{
-            height: 130, backgroundColor: '#E2EBE1',
-            alignItems: 'center', justifyContent: 'center',
-            borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
-          }}>
-            {[1,2,3].map(i => (
-              <View key={i} style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              }}>
-                <View style={{
-                  position: 'absolute', top: `${i * 33}%` as any,
-                  left: 0, right: 0, height: 1,
-                  backgroundColor: '#2D6A4F', opacity: 0.1,
-                }} />
-              </View>
-            ))}
-            <View style={{
-              width: 42, height: 42, borderRadius: 21,
-              backgroundColor: '#2D6A4F',
-              alignItems: 'center', justifyContent: 'center',
-              shadowColor: '#000', shadowOpacity: 0.2,
-              shadowRadius: 6, elevation: 4,
-            }}>
-              <Feather name="map-pin" size={20} color="#fff" />
-            </View>
-            <View style={{
-              backgroundColor: 'rgba(255,255,255,0.95)',
-              borderRadius: 20, paddingHorizontal: 12,
-              paddingVertical: 4, marginTop: 8,
-            }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#2D6A4F' }}>
-                Loading Dock — Berea Centre
-              </Text>
-            </View>
+        <View style={card}>
+          <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+            Loading Dock Address
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 12, height: 46, marginBottom: 12 }}>
+            <Feather name="map-pin" size={14} color="#94A3B8" style={{ marginRight: 8 }} />
+            <TextInput
+              placeholder="e.g. 45 Berea Road, Durban"
+              placeholderTextColor="#CBD5E1"
+              value={dockAddress}
+              onChangeText={(v) => { setDockAddress(v); geocodeDock(v); }}
+              style={{ flex: 1, fontSize: 14, color: '#1E293B' }}
+            />
           </View>
-          <View style={{ padding: 14 }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => Alert.alert('Set Loading Dock Pin', 'Drop a pin on the map to mark your loading dock location. This helps drivers find the correct entrance.', [{ text: 'OK' }])}
-              style={{
-                borderRadius: 12, paddingVertical: 11,
-                alignItems: 'center', flexDirection: 'row',
-                justifyContent: 'center', gap: 6,
-                backgroundColor: '#F1F5F9',
-              }}
-            >
-              <Feather name="edit-2" size={13} color="#2D6A4F" />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#2D6A4F' }}>
-                Set / Adjust Loading Dock Pin
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <MapPreview
+            profileCity={session?.city || 'Durban'}
+            latitude={dockLat ?? undefined}
+            longitude={dockLng ?? undefined}
+            usePhoneLocation={dockLat === null && dockLng === null}
+            useRegion
+            height={160}
+            markerTitle={dockAddress || 'Loading dock'}
+            markerDescription={dockAddress || undefined}
+            markerVariant="pickup"
+            draggable
+            onMapPress={(c) => { setDockLat(c.latitude); setDockLng(c.longitude); }}
+            onMarkerDragEnd={(c) => { setDockLat(c.latitude); setDockLng(c.longitude); }}
+          />
+          <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 6, marginBottom: 14, textAlign: 'center' }}>
+            Tap the map to fine-tune the pin position
+          </Text>
+          <TouchableOpacity
+            onPress={saveDock}
+            disabled={savingDock}
+            activeOpacity={0.85}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              gap: 8, paddingVertical: 12, backgroundColor: '#2D6A4F', borderRadius: 12,
+              opacity: savingDock ? 0.7 : 1,
+            }}
+          >
+            {savingDock ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Feather name="save" size={15} color="#fff" />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Save Loading Dock</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* ── Verification docs ── */}

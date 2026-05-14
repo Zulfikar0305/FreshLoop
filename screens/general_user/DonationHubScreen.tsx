@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
+import MapPreview from '../../components/MapPreview';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { getUserInventory, updateItemQuantity, updateItemStatus, type InventoryItem } from '../../services/inventoryService';
@@ -34,27 +35,6 @@ const PIN_LABELS: Record<DonationPin, string> = {
   green: '6h+ remaining', yellow: '2–6h remaining', red: 'Under 2h',
 };
 const FILTER_CHIPS: FilterChip[] = ['All', 'Vegetables', 'Cooked Meals', 'Dairy', 'Bakery'];
-
-// Preset visual positions for up to 5 map pins (display-only; no real geo coords)
-const MAP_PIN_POSITIONS = [
-  { top: '18%', left: '28%' },
-  { top: '55%', left: '55%' },
-  { top: '35%', left: '68%' },
-  { top: '72%', left: '22%' },
-  { top: '45%', left: '40%' },
-] as const;
-
-// ── Mini-map grid helper ────────────────────────────────────────────────────
-const MapGrid = () => (
-  <View style={StyleSheet.absoluteFill}>
-    {[...Array(5)].map((_, i) => (
-      <View key={`h${i}`} style={[s.gridLine, s.gridH, { top: `${i * 25}%` as any }]} />
-    ))}
-    {[...Array(5)].map((_, i) => (
-      <View key={`v${i}`} style={[s.gridLine, s.gridV, { left: `${i * 25}%` as any }]} />
-    ))}
-  </View>
-);
 
 // ── Report footer button ────────────────────────────────────────────────────
 const ReportButton = ({ onPress }: { onPress: () => void }) => (
@@ -324,53 +304,15 @@ export default function DonationHubScreen() {
 
             {/* Map view */}
             {!listView && (
-              <View style={s.mapCard}>
-                <MapGrid />
-                <View style={s.mapBadge}>
-                  <Feather name="navigation" size={10} color="#2D6A4F" />
-                  <Text style={s.mapBadgeText}>Durban, KZN</Text>
-                </View>
-                {filteredLive.slice(0, MAP_PIN_POSITIONS.length).map((l, idx) => {
-                  const pos = MAP_PIN_POSITIONS[idx];
-                  return (
-                    <TouchableOpacity key={l.id} onPress={() => setSelectedListing(l)}
-                      activeOpacity={0.8}
-                      style={[s.pin, { top: pos.top as any, left: pos.left as any }]}>
-                      <View style={[s.pinDot, { backgroundColor: PIN_COLORS[l.pin] }]}>
-                        <Text style={{ fontSize: 10 }}>{l.icon}</Text>
-                      </View>
-                      <View style={[s.pinTail, { backgroundColor: PIN_COLORS[l.pin] }]} />
-                    </TouchableOpacity>
-                  );
-                })}
-                {filteredLive.length === 0 && !donationsLoading && (
-                  <View style={{
-                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                    alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: 'rgba(255,255,255,0.7)',
-                  }}>
-                    <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '600' }}>
-                      No donations in your area yet
-                    </Text>
-                  </View>
-                )}
-                {/* Legend */}
-                <View style={s.legend}>
-                  {(Object.entries(PIN_COLORS) as [DonationPin, string][]).map(([k, c]) => (
-                    <View key={k} style={s.legendItem}>
-                      <View style={[s.legendDot, { backgroundColor: c }]} />
-                      <Text style={s.legendText}>{PIN_LABELS[k]}</Text>
-                    </View>
-                  ))}
-                </View>
+              <View style={[s.mapCard, { padding: 0, overflow: 'hidden' }]}>
+                <MapPreview
+                  profileCity={session?.city || 'Durban'}
+                  usePhoneLocation
+                  height={220}
+                  markerTitle="Donations near you"
+                  markerVariant="pickup"
+                />
               </View>
-            )}
-
-            {/* Map preview notice */}
-            {!listView && (
-              <Text style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', marginTop: -4, marginBottom: 8, paddingHorizontal: 20 }}>
-                Map preview — live GPS search coming soon
-              </Text>
             )}
 
             {/* Listing cards */}
@@ -663,12 +605,15 @@ export default function DonationHubScreen() {
 
                 {/* Mini-map */}
                 <Text style={s.modalSection}>Pickup location</Text>
-                <View style={[s.miniMap, { height: 110, borderRadius: 16, marginBottom: 16 }]}>
-                  <MapGrid />
-                  <Feather name="map-pin" size={22} color="#EF4444" />
-                  <View style={s.mapStoreBadge}>
-                    <Text style={s.mapStoreBadgeText}>{selectedListing.store}</Text>
-                  </View>
+                <View style={{ marginBottom: 16 }}>
+                  <MapPreview
+                    profileCity={session?.city || 'Durban'}
+                    usePhoneLocation={false}
+                    height={110}
+                    markerTitle={selectedListing.store}
+                    markerDescription={selectedListing.store}
+                    markerVariant="pickup"
+                  />
                 </View>
 
                 {/* Request button */}

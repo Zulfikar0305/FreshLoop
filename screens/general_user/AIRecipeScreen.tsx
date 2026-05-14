@@ -67,7 +67,7 @@ export default function AIRecipeScreen() {
           ...(Array.isArray(d.customDiets) ? (d.customDiets as string[]) : []),
         ];
         setPrefs({
-          householdSize: typeof d.householdSize === 'number' ? d.householdSize : 2,
+          householdSize: typeof d.householdSize === 'number' && d.householdSize > 0 ? d.householdSize : 2,
           diets: allDiets,
           allergens: Array.isArray(d.allergens) ? (d.allergens as string[]) : [],
         });
@@ -92,7 +92,138 @@ export default function AIRecipeScreen() {
     loadPantry();
   };
 
+  const [offlineFallback, setOfflineFallback] = useState(false);
+
   const activeCount = pantryItems.length;
+
+  /** Returns true when the error looks like a Gemini quota/rate-limit failure. */
+  function isQuotaError(e: unknown): boolean {
+    const m = (e instanceof Error ? e.message : String(e)).toLowerCase();
+    return m.includes('quota') || m.includes('429') || m.includes('resource_exhausted') || m.includes('rate limit');
+  }
+
+  /** Builds offline recipe cards using the actual pantry items (no generic fallback). */
+  function buildOfflineRecipes(items: InventoryItem[]): Recipe[] {
+    const cap = (s: string) =>
+      s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    const firstProtein = items.find(i => /mince|chicken|beef|fish|pork|lamb|tuna|sausage|bacon|prawn|egg/i.test(i.name));
+    const firstCarb    = items.find(i => /pasta|rice|bread|noodle|potato|flour|oat/i.test(i.name));
+    const veggies      = items.filter(i => /tomato|onion|spinach|pepper|carrot|mushroom|broccoli|cucumber|garlic|leek/i.test(i.name));
+    const firstVeggie  = veggies.length > 0 ? veggies[0] : undefined;
+    const secondVeggie = veggies.length > 1 ? veggies[1] : undefined;
+    const firstCheese  = items.find(i => /cheese|gouda|cheddar|feta|mozzarella|brie/i.test(i.name));
+    const results: Recipe[] = [];
+
+    // Recipe 1: protein + carb (+ optional cheese bake)
+    if (firstProtein && firstCarb) {
+      const title = firstCheese
+        ? `${cap(firstCheese.name)} ${cap(firstProtein.name)} ${cap(firstCarb.name)} Bake`
+        : `${cap(firstProtein.name)} ${cap(firstCarb.name)}`;
+      results.push({
+        id: 'offline-1', title, time: '25 min', difficulty: 'Easy',
+        tag: 'Offline suggestion', tagColor: '#0D9488', tagBg: '#CCFBF1', icon: '🍝',
+        calories: 440,
+        steps: [
+          `Cook the ${firstCarb.name} until tender.`,
+          `Brown the ${firstProtein.name} in a pan over medium-high heat until cooked through.`,
+          ...(firstVeggie ? [`Add ${firstVeggie.name} and cook for 3 minutes.`] : []),
+          firstCheese
+            ? `Combine with ${firstCarb.name}, top with ${firstCheese.name}, and bake at 180 °C for 10 minutes.`
+            : `Toss the ${firstProtein.name} with the ${firstCarb.name}. Season and serve.`,
+        ],
+        ingredients: [
+          { name: firstProtein.name, inPantry: true },
+          { name: firstCarb.name,    inPantry: true },
+          ...(firstCheese  ? [{ name: firstCheese.name,  inPantry: true }] : []),
+          ...(firstVeggie  ? [{ name: firstVeggie.name,  inPantry: true }] : []),
+          { name: 'Salt & pepper', inPantry: false },
+        ],
+      });
+    }
+
+    // Recipe 2: veggie + carb sauce
+    if (firstVeggie && firstCarb) {
+      const title = secondVeggie
+        ? `${cap(firstVeggie.name)} & ${cap(secondVeggie.name)} ${cap(firstCarb.name)}`
+        : `${cap(firstVeggie.name)} ${cap(firstCarb.name)}`;
+      results.push({
+        id: 'offline-2', title, time: '20 min', difficulty: 'Easy',
+        tag: 'Offline suggestion', tagColor: '#0D9488', tagBg: '#CCFBF1', icon: '🍲',
+        calories: 310,
+        steps: [
+          `Cook the ${firstCarb.name} until tender and set aside.`,
+          `Dice the ${firstVeggie.name}${secondVeggie ? ' and ' + secondVeggie.name : ''} and sauté in oil for 5 minutes.`,
+          `Combine with the cooked ${firstCarb.name}, season with salt and pepper, and serve.`,
+        ],
+        ingredients: [
+          { name: firstVeggie.name, inPantry: true },
+          ...(secondVeggie ? [{ name: secondVeggie.name, inPantry: true }] : []),
+          { name: firstCarb.name,   inPantry: true },
+          { name: 'Olive oil',      inPantry: false },
+        ],
+      });
+    }
+
+    // Recipe 3: protein skillet
+    if (firstProtein) {
+      const skilletVeg = firstVeggie;
+      const title = skilletVeg
+        ? `${cap(firstProtein.name)} & ${cap(skilletVeg.name)} Skillet`
+        : `${cap(firstProtein.name)} Skillet`;
+      results.push({
+        id: 'offline-3', title, time: '15 min', difficulty: 'Easy',
+        tag: 'Offline suggestion', tagColor: '#0D9488', tagBg: '#CCFBF1', icon: '🍳',
+        calories: 360,
+        steps: [
+          'Heat a splash of oil in a large skillet over medium-high heat.',
+          `Add the ${firstProtein.name} and cook until browned.`,
+          ...(skilletVeg ? [`Add ${skilletVeg.name} and stir-fry for 3 minutes.`] : []),
+          'Season with salt and pepper. Serve immediately.',
+        ],
+        ingredients: [
+          { name: firstProtein.name, inPantry: true },
+          ...(skilletVeg ? [{ name: skilletVeg.name, inPantry: true }] : []),
+          { name: 'Cooking oil', inPantry: false },
+        ],
+      });
+    }
+
+    // Recipe 4: cheese + carb bake
+    if (firstCheese && firstCarb) {
+      results.push({
+        id: 'offline-4', title: `${cap(firstCheese.name)} ${cap(firstCarb.name)} Bake`,
+        time: '30 min', difficulty: 'Easy',
+        tag: 'Offline suggestion', tagColor: '#0D9488', tagBg: '#CCFBF1', icon: '🧀',
+        calories: 390,
+        steps: [
+          `Cook the ${firstCarb.name} until just tender.`,
+          `Drain and toss with grated or sliced ${firstCheese.name}.`,
+          'Transfer to an oven dish and bake at 180 °C for 15 minutes until golden.',
+        ],
+        ingredients: [
+          { name: firstCheese.name, inPantry: true },
+          { name: firstCarb.name,   inPantry: true },
+          { name: 'Salt',           inPantry: false },
+        ],
+      });
+    }
+
+    // Generic fallback when nothing matched any category
+    if (results.length === 0) {
+      const mainItem = items.find(() => true);
+      results.push({
+        id: 'offline-generic',
+        title: mainItem ? `${cap(mainItem.name)} Bowl` : 'Pantry Bowl',
+        time: '15 min', difficulty: 'Easy',
+        tag: 'Offline suggestion', tagColor: '#0D9488', tagBg: '#CCFBF1', icon: '🍽️',
+        calories: 300,
+        steps: ['Combine your pantry items and cook until done.', 'Season to taste and serve.'],
+        ingredients: items.slice(0, 3).map(i => ({ name: i.name, inPantry: true })),
+      });
+    }
+
+    return results.slice(0, 4);
+  }
 
   const handleGenerateRecipes = async () => {
     if (!session?.userId) {
@@ -107,7 +238,7 @@ export default function AIRecipeScreen() {
       return;
     }
 
-    setGenerating(true);
+      setGenerating(true);
     try {
       const generated = await generateRecipesFromInventory(pantryItems, {
         householdSize: prefs.householdSize,
@@ -115,10 +246,14 @@ export default function AIRecipeScreen() {
         diets: prefs.diets,
         allergens: prefs.allergens,
       });
+      setOfflineFallback(false);
       setRecipes(generated);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Something went wrong.';
-      Alert.alert('Recipe generation failed', msg);
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.warn('[FreshLoop] Recipe generation failed:', errMsg);
+      const offline = buildOfflineRecipes(pantryItems);
+      setOfflineFallback(true);
+      setRecipes(offline);
     } finally {
       setGenerating(false);
     }
@@ -227,9 +362,18 @@ export default function AIRecipeScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 14 }}>
           <Feather name="zap" size={13} color="#F97316" style={{ marginRight: 5 }} />
           <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>
-            {showSuggestions ? 'AI picks using your Firestore pantry' : 'Previously saved recipes'}
+            {showSuggestions ? (offlineFallback ? 'Offline suggestions from your pantry' : 'AI picks using your Firestore pantry') : 'Previously saved recipes'}
           </Text>
         </View>
+
+        {offlineFallback && showSuggestions && (
+          <View style={{ marginHorizontal: 20, marginBottom: 14, backgroundColor: '#FFFBEB', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' }}>
+            <Feather name="info" size={15} color="#D97706" style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontSize: 13, color: '#92400E', lineHeight: 19 }}>
+              AI recipe generation is temporarily unavailable. Here are offline suggestions from your pantry. Tap Generate to retry when AI is available.
+            </Text>
+          </View>
+        )}
 
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
           {showSuggestions && recipes.length === 0 && !generating && (

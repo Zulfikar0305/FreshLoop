@@ -16,7 +16,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import CustomHeader from '../../components/CustomHeader';
 import RecipeModal from '../../components/RecipeModal'; // Import the reusable modal
 import { useAuth } from '../../context/AuthContext';
-import { getUserInventory } from '../../services/inventoryService';
+import { getUserInventory, type InventoryItem } from '../../services/inventoryService';
 import { generateRecipesFromInventory, type PantryRecipeCard } from '../../services/geminiRecipeService';
 import { db } from '../../firebase/firebaseConfig';
 
@@ -265,6 +265,16 @@ const buildInitialPlan = (): Record<string, DayPlan> => {
   return plan;
 };
 
+// Starts all meal slots as null — prevents RECIPE_POOL generic meals appearing before
+// the user's pantry is loaded or auto-fill has been run.
+const buildEmptyPlan = (): Record<string, DayPlan> => {
+  const plan: Record<string, DayPlan> = {};
+  DAY_KEYS.forEach((day) => {
+    plan[day] = { breakfast: null, lunch: null, dinner: null, snack: null };
+  });
+  return plan;
+};
+
 // ── Calendar data — computed dynamically from current week ────────────────────────────
 // WEEK_DAYS and DAY_NAMES are no longer static constants.
 // Use buildCurrentWeekDays() inside the component (memoized) and DAY_FULL_NAMES.
@@ -297,7 +307,7 @@ export default function MealPlannerScreen() {
   const weekDays = useMemo(() => buildCurrentWeekDays(), []);
 
   const [activeDate, setActiveDate] = useState<string>(() => getTodayDayKey());
-  const [weekPlan, setWeekPlan] = useState<Record<string, DayPlan>>(buildInitialPlan);
+  const [weekPlan, setWeekPlan] = useState<Record<string, DayPlan>>(buildEmptyPlan);
   const [planLoading, setPlanLoading] = useState(false);
 
   // Modal State
@@ -327,8 +337,8 @@ export default function MealPlannerScreen() {
           if (snap.exists()) {
             const saved = snap.data()?.plan as Record<string, DayPlan> | undefined;
             if (saved && typeof saved === 'object') {
-              // Merge over initial plan to guarantee all 7 day keys are present
-              setWeekPlan({ ...buildInitialPlan(), ...saved });
+              // Merge over empty plan (not RECIPE_POOL) to guarantee all 7 day keys are present
+              setWeekPlan({ ...buildEmptyPlan(), ...saved });
             }
           }
         })
@@ -337,15 +347,128 @@ export default function MealPlannerScreen() {
     }, [session?.userId]),
   );
 
+  function buildPantryMealsFromItems(items: InventoryItem[]): MealRecipe[] {
+    const cap = (s: string) =>
+      s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    const firstProtein = items.find(i => /mince|chicken|beef|fish|pork|lamb|tuna|sausage|bacon|prawn|egg/i.test(i.name));
+    const firstCarb    = items.find(i => /pasta|rice|bread|noodle|potato|flour|oat/i.test(i.name));
+    const veggies      = items.filter(i => /tomato|onion|spinach|pepper|carrot|mushroom|broccoli|cucumber|garlic|leek/i.test(i.name));
+    const firstVeggie  = veggies.length > 0 ? veggies[0] : undefined;
+    const secondVeggie = veggies.length > 1 ? veggies[1] : undefined;
+    const firstCheese  = items.find(i => /cheese|gouda|cheddar|feta|mozzarella|brie/i.test(i.name));
+    const meals: MealRecipe[] = [];
+
+    // Meal 1: protein + carb (dinner)
+    if (firstProtein && firstCarb) {
+      const title = firstCheese
+        ? `${cap(firstCheese.name)} ${cap(firstProtein.name)} ${cap(firstCarb.name)}`
+        : `${cap(firstProtein.name)} ${cap(firstCarb.name)}`;
+      meals.push({
+        id: 'pf-1', title, icon: '🍝', time: '25 min',
+        tag: 'From your pantry', tagColor: '#0D9488', tagBg: '#CCFBF1',
+        calories: 440, usesExpiring: false, prepNote: undefined,
+        steps: [
+          `Cook the ${firstCarb.name}.`,
+          `Brown the ${firstProtein.name} until cooked through.`,
+          firstCheese ? `Combine and top with ${firstCheese.name}.` : 'Combine and season to taste.',
+        ],
+        ingredients: [
+          { name: firstProtein.name, inPantry: true },
+          { name: firstCarb.name,    inPantry: true },
+          ...(firstCheese ? [{ name: firstCheese.name, inPantry: true }] : []),
+        ],
+      });
+    }
+
+    // Meal 2: veggie + carb (lunch)
+    if (firstVeggie && firstCarb) {
+      const title = secondVeggie
+        ? `${cap(firstVeggie.name)} & ${cap(secondVeggie.name)} ${cap(firstCarb.name)}`
+        : `${cap(firstVeggie.name)} ${cap(firstCarb.name)}`;
+      meals.push({
+        id: 'pf-2', title, icon: '🍲', time: '20 min',
+        tag: 'From your pantry', tagColor: '#0D9488', tagBg: '#CCFBF1',
+        calories: 310, usesExpiring: false, prepNote: undefined,
+        steps: [
+          `Cook the ${firstCarb.name} and set aside.`,
+          `Sauté ${firstVeggie.name}${secondVeggie ? ' and ' + secondVeggie.name : ''} in oil for 5 minutes.`,
+          'Combine, season, and serve.',
+        ],
+        ingredients: [
+          { name: firstVeggie.name, inPantry: true },
+          ...(secondVeggie ? [{ name: secondVeggie.name, inPantry: true }] : []),
+          { name: firstCarb.name, inPantry: true },
+        ],
+      });
+    }
+
+    // Meal 3: protein skillet
+    if (firstProtein) {
+      const skilletVeg = firstVeggie;
+      const title = skilletVeg
+        ? `${cap(firstProtein.name)} & ${cap(skilletVeg.name)} Skillet`
+        : `${cap(firstProtein.name)} Skillet`;
+      meals.push({
+        id: 'pf-3', title, icon: '🍳', time: '15 min',
+        tag: 'From your pantry', tagColor: '#0D9488', tagBg: '#CCFBF1',
+        calories: 360, usesExpiring: false, prepNote: undefined,
+        steps: [
+          `Heat oil in a skillet, add ${firstProtein.name}, cook until browned.`,
+          ...(skilletVeg ? [`Add ${skilletVeg.name} and stir-fry 3 minutes.`] : []),
+          'Season and serve.',
+        ],
+        ingredients: [
+          { name: firstProtein.name, inPantry: true },
+          ...(skilletVeg ? [{ name: skilletVeg.name, inPantry: true }] : []),
+        ],
+      });
+    }
+
+    // Meal 4: cheese + carb bake
+    if (firstCheese && firstCarb) {
+      meals.push({
+        id: 'pf-4', title: `${cap(firstCheese.name)} ${cap(firstCarb.name)} Bake`,
+        icon: '🧀', time: '30 min',
+        tag: 'From your pantry', tagColor: '#0D9488', tagBg: '#CCFBF1',
+        calories: 390, usesExpiring: false, prepNote: undefined,
+        steps: [
+          `Cook ${firstCarb.name} until tender.`,
+          `Toss with ${firstCheese.name} and bake at 180 °C for 15 minutes.`,
+        ],
+        ingredients: [
+          { name: firstCheese.name, inPantry: true },
+          { name: firstCarb.name,   inPantry: true },
+        ],
+      });
+    }
+
+    // Fallback if nothing matched any category
+    if (meals.length === 0) {
+      const mainItem = items.find(() => true);
+      meals.push({
+        id: 'pf-fallback',
+        title: mainItem ? `${cap(mainItem.name)} Bowl` : 'Pantry Bowl',
+        icon: '🍽️', time: '15 min',
+        tag: 'From your pantry', tagColor: '#0D9488', tagBg: '#CCFBF1',
+        calories: 300, usesExpiring: false, prepNote: undefined,
+        steps: ['Prepare pantry items as desired.', 'Season and serve.'],
+        ingredients: items.slice(0, 3).map(i => ({ name: i.name, inPantry: true })),
+      });
+    }
+
+    return meals;
+  }
+
   const handleAutoFill = useCallback(async () => {
     if (!session?.userId) {
       Alert.alert('Sign in required', 'Please sign in to use AI auto-fill.');
       return;
     }
     setAutoFillLoading(true);
+    let active: InventoryItem[] = [];
     try {
       const inv = await getUserInventory(session.userId);
-      const active = inv.filter((i) => i.status === 'active');
+      active = inv.filter((i) => i.status === 'active');
       if (active.length === 0) {
         Alert.alert('Pantry empty', 'Add ingredients with Quick Add before using AI auto-fill.');
         return;
@@ -379,8 +502,27 @@ export default function MealPlannerScreen() {
       await savePlan(newPlan);
       Alert.alert('Done! 🤖', 'Your week has been filled with AI-suggested recipes from your pantry. Tap any meal to swap.');
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Something went wrong.';
-      Alert.alert('Auto-fill failed', msg);
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.warn('[FreshLoop] Auto-fill failed:', errMsg);
+      const pantryMeals = active.length > 0 ? buildPantryMealsFromItems(active) : [];
+      const hasBf = active.some(x => /egg|bread|oat|yoghurt|banana|apple/i.test(x.name));
+      const fallbackPlan: Record<string, DayPlan> = {};
+      weekDays.forEach(({ day }, i) => {
+        fallbackPlan[day] = {
+          breakfast: hasBf
+            ? (pantryMeals.length > 3 ? pantryMeals[3] : RECIPE_POOL.breakfast[i % RECIPE_POOL.breakfast.length])
+            : null,
+          lunch:  pantryMeals.length > 1 ? pantryMeals[1] : (pantryMeals.length > 0 ? pantryMeals[0] : RECIPE_POOL.lunch[i % RECIPE_POOL.lunch.length]),
+          dinner: pantryMeals.length > 0 ? pantryMeals[0] : RECIPE_POOL.dinner[i % RECIPE_POOL.dinner.length],
+          snack:  i % 2 === 0 ? RECIPE_POOL.snack[i % RECIPE_POOL.snack.length] : null,
+        };
+      });
+      setWeekPlan(fallbackPlan);
+      savePlan(fallbackPlan).catch(() => {});
+      Alert.alert(
+        'Using pantry-based meal plan 🥗',
+        'AI recipe generation is temporarily unavailable. Your week has been filled with meals from your pantry — tap any meal to swap.'
+      );
     } finally {
       setAutoFillLoading(false);
     }

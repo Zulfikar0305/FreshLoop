@@ -19,7 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import CustomHeader from '../../components/CustomHeader';
 import { useSignOut } from '../../navigation/RootNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../services/firebaseConfig';
+import { db } from '../../firebase/firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const DIETARY_PRESETS = ['Vegetarian', 'Vegan', 'Halal', 'Kosher', 'Gluten-Free'];

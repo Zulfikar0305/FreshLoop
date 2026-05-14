@@ -230,6 +230,7 @@ Each object MUST have this shape:
 
 Use fromPantry: true for any ingredient drawn from the PANTRY list above (match names loosely). Use fromPantry: false only for salt/pepper/oil/water staples or items truly not from the list (there should be none except staples).`;
 
+  console.log(`[Gemini] requesting ${recipeCount} recipes · model=${GEMINI_MODEL} · items=${active.length} · key hint ...${apiKey.slice(-4)}`);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   const res = await fetch(url, {
@@ -252,7 +253,9 @@ Use fromPantry: true for any ingredient drawn from the PANTRY list above (match 
   };
 
   if (!res.ok) {
-    throw new Error(data.error?.message ?? `Gemini error (${res.status})`);
+    const errMsg = data.error?.message ?? `Gemini error (${res.status})`;
+    console.warn(`[Gemini] request failed (${res.status}):`, errMsg);
+    throw new Error(errMsg);
   }
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;

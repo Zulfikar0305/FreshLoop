@@ -12,7 +12,7 @@ import {
   where,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../firebase/firebaseConfig';
+import { auth, db } from '../firebase/firebaseConfig';
 import { createNotification } from './inAppNotificationService';
 
 export type DonationStatus = 'available' | 'claimed' | 'completed' | 'cancelled';
@@ -31,6 +31,8 @@ export type DonationListing = {
   pickupAddress: string;
   pickupWindow: string;
   city: string;
+  latitude: number | null;
+  longitude: number | null;
   notes: string;
   status: DonationStatus;
   claimedBy: string | null;
@@ -55,6 +57,8 @@ export type CreateDonationInput = {
   pickupAddress: string;
   pickupWindow: string;
   city: string;
+  latitude?: number;
+  longitude?: number;
   notes: string;
   visibleUntil?: string;
 };
@@ -74,6 +78,8 @@ function mapSnap(id: string, data: Record<string, unknown>): DonationListing {
     pickupAddress: typeof data.pickupAddress === 'string' ? data.pickupAddress : '',
     pickupWindow: typeof data.pickupWindow === 'string' ? data.pickupWindow : '',
     city: typeof data.city === 'string' ? data.city : '',
+    latitude: typeof data.latitude === 'number' ? data.latitude : null,
+    longitude: typeof data.longitude === 'number' ? data.longitude : null,
     notes: typeof data.notes === 'string' ? data.notes : '',
     status: (['available', 'claimed', 'completed', 'cancelled'] as DonationStatus[]).includes(data.status as DonationStatus)
       ? (data.status as DonationStatus)
@@ -89,6 +95,13 @@ function mapSnap(id: string, data: Record<string, unknown>): DonationListing {
 }
 
 export async function createDonationListing(input: CreateDonationInput): Promise<string> {
+  // Always use the live Firebase Auth UID so that
+  // request.resource.data.donorId == request.auth.uid is guaranteed.
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) {
+    throw new Error('You must be signed in to publish a donation listing.');
+  }
+
   let expiryTimestamp: Timestamp | null = null;
   if (input.expiryDate) {
     const d = new Date(input.expiryDate);
@@ -104,9 +117,9 @@ export async function createDonationListing(input: CreateDonationInput): Promise
   }
 
   const ref = await addDoc(collection(db, 'donations'), {
-    donorId: input.donorId,
+    donorId: currentUid,
     donorRole: input.donorRole,
-    donorName: input.donorName,
+    donorName: (input.donorName || 'Business Donor').trim() || 'Business Donor',
     foodName: input.foodName.trim(),
     quantity: input.quantity.trim(),
     unit: input.unit.trim(),
@@ -116,6 +129,8 @@ export async function createDonationListing(input: CreateDonationInput): Promise
     pickupAddress: input.pickupAddress.trim(),
     pickupWindow: input.pickupWindow.trim(),
     city: input.city.trim() || 'Durban',
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
     notes: input.notes.trim(),
     visibleUntil: visibleUntilTs,
     status: 'available',

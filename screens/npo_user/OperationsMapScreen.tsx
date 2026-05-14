@@ -6,11 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Dimensions,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
 import { useAuth } from '../../context/AuthContext';
@@ -20,7 +21,6 @@ import {
   type DonationListing,
 } from '../../services/donationService';
 
-const { width } = Dimensions.get('window');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Urgency = 'green' | 'yellow' | 'red';
@@ -39,6 +39,8 @@ type Donation = {
   urgency:     Urgency;
   hoursLeft:   number;
   claimed:     boolean;
+  latitude:    number | null;
+  longitude:   number | null;
 };
 // ── Firestore → UI mapping helpers ────────────────────────────────────────────
 function hoursUntil(date: Date | null): number {
@@ -74,6 +76,8 @@ function toUIDonation(d: DonationListing): Donation {
     urgency: urgencyFromHours(hours),
     hoursLeft: Math.ceil(hours),
     claimed: false,
+    latitude: d.latitude ?? null,
+    longitude: d.longitude ?? null,
   };
 }
 // ── Dummy data ────────────────────────────────────────────────────────────────
@@ -85,6 +89,7 @@ const INITIAL_DONATIONS: Donation[] = [
     weight: '8 kg', pickupStart: '14:00', pickupEnd: '16:00',
     address: '12 Old Main Rd, Westville', city: 'Durban',
     distance: '2.3 km', urgency: 'green', hoursLeft: 8, claimed: false,
+    latitude: null, longitude: null,
   },
   {
     id: '2', store: "Food Lover's Market Pinetown",
@@ -93,6 +98,7 @@ const INITIAL_DONATIONS: Donation[] = [
     weight: '5.5 kg', pickupStart: '15:30', pickupEnd: '17:30',
     address: '33 King St, Pinetown', city: 'Durban',
     distance: '4.7 km', urgency: 'yellow', hoursLeft: 4, claimed: false,
+    latitude: null, longitude: null,
   },
   {
     id: '3', store: 'Pick n Pay Pavilion',
@@ -101,6 +107,7 @@ const INITIAL_DONATIONS: Donation[] = [
     weight: '3 kg', pickupStart: '16:00', pickupEnd: '17:00',
     address: 'Pavilion Shopping Centre, Westville', city: 'Durban',
     distance: '3.1 km', urgency: 'red', hoursLeft: 1.5, claimed: false,
+    latitude: null, longitude: null,
   },
   {
     id: '4', store: 'Checkers Chatsworth',
@@ -109,6 +116,7 @@ const INITIAL_DONATIONS: Donation[] = [
     weight: '12 kg', pickupStart: '10:00', pickupEnd: '18:00',
     address: 'Chatsworth Centre, Chatsworth', city: 'Durban',
     distance: '6.8 km', urgency: 'green', hoursLeft: 12, claimed: false,
+    latitude: null, longitude: null,
   },
   {
     id: '5', store: 'Woolworths Musgrave',
@@ -117,18 +125,65 @@ const INITIAL_DONATIONS: Donation[] = [
     weight: '4.2 kg', pickupStart: '17:00', pickupEnd: '18:00',
     address: 'Musgrave Centre, Berea', city: 'Durban',
     distance: '5.4 km', urgency: 'red', hoursLeft: 1, claimed: false,
+    latitude: null, longitude: null,
   },
 ];
 
 const FILTERS = ['All', 'Fresh Produce', 'Baked Goods', 'Dairy', 'Dry Goods', 'Refrigeration'];
 
-const MAP_POSITIONS = [
-  { x: 0.25, y: 0.3 },
-  { x: 0.6,  y: 0.45 },
-  { x: 0.4,  y: 0.65 },
-  { x: 0.75, y: 0.25 },
-  { x: 0.2,  y: 0.6  },
+// ── City coordinate lookup ────────────────────────────────────────────────────
+const DEFAULT_REGION = { latitude: -29.8587, longitude: 31.0218 }; // Durban fallback
+
+const CITY_COORDS: Record<string, { latitude: number; longitude: number }> = {
+  'durban':           { latitude: -29.8587, longitude: 31.0218 },
+  'johannesburg':     { latitude: -26.2041, longitude: 28.0473 },
+  'cape town':        { latitude: -33.9249, longitude: 18.4241 },
+  'pretoria':         { latitude: -25.7461, longitude: 28.1881 },
+  'port elizabeth':   { latitude: -33.9608, longitude: 25.6022 },
+  'bloemfontein':     { latitude: -29.0852, longitude: 26.1596 },
+  'east london':      { latitude: -33.0153, longitude: 27.9116 },
+  'pietermaritzburg': { latitude: -29.6006, longitude: 30.3794 },
+  'nelspruit':        { latitude: -25.4745, longitude: 30.9694 },
+  'polokwane':        { latitude: -23.9045, longitude: 29.4688 },
+  'westville':        { latitude: -29.8297, longitude: 30.9313 },
+  'pinetown':         { latitude: -29.8169, longitude: 30.8599 },
+  'chatsworth':       { latitude: -29.9167, longitude: 30.9500 },
+  'berea':            { latitude: -29.8518, longitude: 31.0191 },
+};
+
+function cityToCoord(city: string): { latitude: number; longitude: number } {
+  const key = city.toLowerCase().trim();
+  for (const [k, v] of Object.entries(CITY_COORDS)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return DEFAULT_REGION;
+}
+
+// Small deterministic offsets so markers don't stack exactly on the same spot
+const MARKER_OFFSETS = [
+  { lat:  0.022, lng:  0.032 },
+  { lat: -0.018, lng:  0.027 },
+  { lat:  0.033, lng: -0.021 },
+  { lat: -0.026, lng: -0.016 },
+  { lat:  0.012, lng:  0.042 },
+  { lat: -0.037, lng:  0.011 },
+  { lat:  0.041, lng:  0.022 },
+  { lat: -0.011, lng: -0.038 },
 ];
+
+function donationCoord(
+  d: Donation,
+  center: { latitude: number; longitude: number },
+  index: number,
+): { latitude: number; longitude: number } {
+  if (d.latitude != null && d.longitude != null) {
+    return { latitude: d.latitude, longitude: d.longitude };
+  }
+  // Use donation's own city if available, else center
+  const base = d.city ? cityToCoord(d.city) : center;
+  const offset = MARKER_OFFSETS[index % MARKER_OFFSETS.length] ?? { lat: 0, lng: 0 };
+  return { latitude: base.latitude + offset.lat, longitude: base.longitude + offset.lng };
+}
 
 // ── Urgency config ────────────────────────────────────────────────────────────
 const URGENCY: Record<Urgency, {
@@ -148,116 +203,71 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Feather>['name'
   'Prepared Meals':'layers',
 };
 
-// ── Map placeholder ───────────────────────────────────────────────────────────
-function MapPlaceholder({
+// ── Real Map Section ──────────────────────────────────────────────────────────
+function MapSection({
   donations,
+  center,
+  showUserMarker,
+  locationLabel,
   onPinPress,
 }: {
   donations: Donation[];
+  center: { latitude: number; longitude: number };
+  showUserMarker: boolean;
+  locationLabel: string;
   onPinPress: (d: Donation) => void;
 }) {
+  const region = {
+    latitude:      center.latitude,
+    longitude:     center.longitude,
+    latitudeDelta:  0.18,
+    longitudeDelta: 0.18,
+  };
+
   return (
-    <View style={{
-      height: 220, borderRadius: 20, overflow: 'hidden',
-      backgroundColor: '#E8F0E8',
-      borderWidth: 1, borderColor: '#D1E8D0',
-    }}>
-      {/* Grid lines */}
-      {[1,2,3,4,5].map(i => (
-        <View key={`h${i}`} style={{
-          position: 'absolute', left: 0, right: 0,
-          top: (220 / 6) * i, height: 1,
-          backgroundColor: '#2D6A4F', opacity: 0.08,
-        }} />
-      ))}
-      {[1,2,3,4].map(i => (
-        <View key={`v${i}`} style={{
-          position: 'absolute', top: 0, bottom: 0,
-          left: ((width - 40) / 5) * i, width: 1,
-          backgroundColor: '#2D6A4F', opacity: 0.08,
-        }} />
-      ))}
+    <View style={{ height: 260, borderRadius: 20, overflow: 'hidden' }}>
+      <MapView
+        style={{ flex: 1 }}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
+        initialRegion={region}
+        showsUserLocation={showUserMarker}
+        showsMyLocationButton={false}
+        showsCompass
+        toolbarEnabled={false}
+      >
+        {donations.map((d, i) => {
+          const coord  = donationCoord(d, center, i);
+          const cfg    = URGENCY[d.urgency];
+          const pinColor = d.claimed ? '#94A3B8' : cfg.color;
+          return (
+            <Marker
+              key={d.id}
+              coordinate={coord}
+              pinColor={pinColor}
+              title={d.store}
+              description={`${d.address} · ${d.weight} · ${d.pickupStart}–${d.pickupEnd}`}
+              onPress={() => onPinPress(d)}
+            />
+          );
+        })}
+      </MapView>
 
-      {/* Road lines */}
-      <View style={{
-        position: 'absolute', left: '15%', right: '10%',
-        top: '50%', height: 5, backgroundColor: '#fff',
-        borderRadius: 3, opacity: 0.7,
-      }} />
-      <View style={{
-        position: 'absolute', left: '40%', top: '10%',
-        bottom: '15%', width: 5, backgroundColor: '#fff',
-        borderRadius: 3, opacity: 0.7,
-      }} />
-      <View style={{
-        position: 'absolute', left: '65%', right: 0,
-        top: '35%', height: 5, backgroundColor: '#fff',
-        borderRadius: 3, opacity: 0.7,
-        transform: [{ rotate: '20deg' }],
-      }} />
-
-      {/* Donation pins */}
-      {donations.map((d, i) => {
-        const pos = MAP_POSITIONS[i];
-        if (!pos) return null;
-        const cfg = URGENCY[d.urgency];
-        return (
-          <TouchableOpacity
-            key={d.id}
-            onPress={() => onPinPress(d)}
-            style={{
-              position: 'absolute',
-              left: pos.x * (width - 80),
-              top: pos.y * 170,
-              alignItems: 'center',
-            }}
-          >
-            <View style={{
-              width: 36, height: 36, borderRadius: 18,
-              backgroundColor: d.claimed ? '#94A3B8' : cfg.color,
-              alignItems: 'center', justifyContent: 'center',
-              borderWidth: 2.5, borderColor: '#fff',
-              shadowColor: cfg.color, shadowOpacity: 0.5,
-              shadowRadius: 6, elevation: 6,
-            }}>
-              <Feather
-                name={CATEGORY_ICONS[d.category] ?? 'package'}
-                size={14} color="#fff"
-              />
-            </View>
-            {/* Pin tail */}
-            <View style={{
-              width: 0, height: 0,
-              borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8,
-              borderLeftColor: 'transparent', borderRightColor: 'transparent',
-              borderTopColor: d.claimed ? '#94A3B8' : cfg.color,
-              marginTop: -2,
-            }} />
-          </TouchableOpacity>
-        );
-      })}
-
-      {/* You are here */}
-      <View style={{
-        position: 'absolute', left: '47%', top: '47%',
-        width: 18, height: 18, borderRadius: 9,
-        backgroundColor: '#60A5FA',
-        borderWidth: 3, borderColor: '#fff',
-        shadowColor: '#60A5FA', shadowOpacity: 0.6,
-        shadowRadius: 6, elevation: 8,
-      }} />
-
-      {/* Map label */}
-      <View style={{
-        position: 'absolute', bottom: 10, right: 10,
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4,
-        borderWidth: 1, borderColor: '#E2E8F0',
-      }}>
-        <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '700' }}>
-          FreshLoop Map
-        </Text>
-      </View>
+      {/* Location label overlay */}
+      {!!locationLabel && (
+        <View style={{
+          position: 'absolute', bottom: 10, left: 10,
+          backgroundColor: 'rgba(255,255,255,0.92)',
+          borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4,
+          borderWidth: 1, borderColor: '#E2E8F0',
+          flexDirection: 'row', alignItems: 'center', gap: 4,
+          maxWidth: '70%',
+        }}>
+          <Feather name="map-pin" size={10} color="#2D6A4F" />
+          <Text style={{ fontSize: 10, color: '#2D6A4F', fontWeight: '700' }} numberOfLines={1}>
+            {locationLabel}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -420,6 +430,60 @@ export default function OperationsMapScreen() {
   const [loading,          setLoading]          = useState(true);
   const [claiming,         setClaiming]         = useState(false);
 
+  // ── Location ──
+  const [mapCenter,       setMapCenter]       = useState(DEFAULT_REGION);
+  const [showUserMarker,  setShowUserMarker]  = useState(false);
+  const [locationLabel,   setLocationLabel]   = useState('');
+
+  const npoCity = (session?.city ?? '').trim();
+
+  useEffect(() => {
+    let cancelled = false;
+    const cityFallback = (session?.city ?? '').trim();
+
+    (async () => {
+      let granted = false;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        granted = status === 'granted';
+      } catch { /* permissions API unavailable in this environment */ }
+
+      if (cancelled) return;
+
+      if (granted) {
+        try {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          if (!cancelled) {
+            setMapCenter({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            setShowUserMarker(true);
+            setLocationLabel('Your current location');
+          }
+        } catch {
+          // GPS timeout / unavailable — fall back to city
+          const fallback = cityFallback ? cityToCoord(cityFallback) : DEFAULT_REGION;
+          if (!cancelled) {
+            setMapCenter(fallback);
+            setLocationLabel(cityFallback ? `Profile area · ${cityFallback}` : 'Default area');
+          }
+        }
+      } else {
+        const fallback = cityFallback ? cityToCoord(cityFallback) : DEFAULT_REGION;
+        if (!cancelled) {
+          setMapCenter(fallback);
+          setLocationLabel(
+            cityFallback
+              ? `Using profile area · ${cityFallback}`
+              : 'Set your city in Profile for better matching',
+          );
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []); // run once on mount
+
   useEffect(() => {
     setLoading(true);
     const unsub = subscribeAvailableDonations(
@@ -435,7 +499,6 @@ export default function OperationsMapScreen() {
     (activeFilter === 'Refrigeration' && d.category === 'Dairy')
   );
 
-  const npoCity = (session?.city ?? '').trim();
   const npcLower = npoCity.toLowerCase();
   const cityFiltered = npoCity
     ? filtered.filter(d => {
@@ -535,8 +598,11 @@ export default function OperationsMapScreen() {
 
         {/* ── Map ── */}
         <View style={{ marginBottom: 16 }}>
-          <MapPlaceholder
+          <MapSection
             donations={cityFiltered}
+            center={mapCenter}
+            showUserMarker={showUserMarker}
+            locationLabel={locationLabel}
             onPinPress={setSelectedDonation}
           />
         </View>

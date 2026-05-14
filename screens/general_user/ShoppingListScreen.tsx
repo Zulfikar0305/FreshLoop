@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +18,7 @@ import { LIGHT_COLORS } from '../../context/ThemeContext';
 import {
   subscribeShoppingList,
   removeShoppingListItem,
+  upsertShoppingListItem,
   type ShoppingListItem,
 } from '../../services/shoppingListService';
 
@@ -45,6 +48,9 @@ export default function ShoppingListScreen() {
 
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addSaving, setAddSaving] = useState(false);
 
   useEffect(() => {
     if (!session?.userId) {
@@ -87,10 +93,67 @@ export default function ShoppingListScreen() {
     );
   }, []);
 
+  const handleManualAdd = useCallback(async () => {
+    const name = addName.trim();
+    if (!name) { Alert.alert('Name required', 'Please enter an item name.'); return; }
+    if (!session?.userId) { Alert.alert('Sign in required'); return; }
+    setAddSaving(true);
+    try {
+      await upsertShoppingListItem(session.userId, { itemName: name, category: 'Other', lastKnownPrice: 0 });
+      setAddName('');
+      setShowAddModal(false);
+    } catch {
+      Alert.alert('Error', 'Could not add item. Please try again.');
+    } finally {
+      setAddSaving(false);
+    }
+  }, [addName, session?.userId]);
+
   return (
     <View style={{ flex: 1, backgroundColor: PAGE_BG }}>
       <CustomHeader />
       <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
+
+      {/* Manual add modal */}
+      <Modal visible={showAddModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={1}
+          onPress={() => setShowAddModal(false)}
+        >
+          <View
+            style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginHorizontal: 24, width: '88%' }}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#1E293B', marginBottom: 14 }}>Add item to list</Text>
+            <TextInput
+              style={{ backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#1E293B', marginBottom: 16 }}
+              placeholder="e.g. Cheese, Pasta, Milk"
+              placeholderTextColor="#CBD5E1"
+              value={addName}
+              onChangeText={setAddName}
+              autoFocus
+              onSubmitEditing={handleManualAdd}
+              returnKeyType="done"
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => { setShowAddModal(false); setAddName(''); }}
+                style={{ flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#F1F5F9' }}
+              >
+                <Text style={{ fontWeight: '700', color: '#64748B' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleManualAdd}
+                disabled={addSaving}
+                style={{ flex: 2, borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#2D6A4F', opacity: addSaving ? 0.6 : 1 }}
+              >
+                <Text style={{ fontWeight: '800', color: '#fff' }}>{addSaving ? 'Adding…' : 'Add to list'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -105,19 +168,31 @@ export default function ShoppingListScreen() {
             paddingBottom: 12,
           }}
         >
-          <Text
-            style={{
-              fontSize: 22,
-              fontWeight: '800',
-              color: '#1E293B',
-              letterSpacing: -0.4,
-            }}
-          >
-            Shopping list 📝
-          </Text>
-          <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 2 }}>
-            {loading ? 'Loading…' : `${items.length} item${items.length !== 1 ? 's' : ''} to replenish`}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <View>
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: '800',
+                  color: '#1E293B',
+                  letterSpacing: -0.4,
+                }}
+              >
+                Shopping list 📝
+              </Text>
+              <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 2 }}>
+                {loading ? 'Loading…' : `${items.length} item${items.length !== 1 ? 's' : ''} to replenish`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowAddModal(true)}
+              activeOpacity={0.8}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2D6A4F', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginTop: 2 }}
+            >
+              <Feather name="plus" size={14} color="#fff" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Add item</Text>
+            </TouchableOpacity>
+          </View>
 
           <View
             style={{

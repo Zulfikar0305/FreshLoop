@@ -1,11 +1,38 @@
 // screens/admin_user/AdminAccountsScreen.tsx
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import CustomHeader from '../../components/CustomHeader';
-import { C, fmtDate, MOCK_ADMINS } from './adminTypes';
+import { db } from '../../firebase/firebaseConfig';
+import { C, fmtDate, AdminAccount } from './adminTypes';
 
 export default function AdminAccountsScreen() {
-  const admins = MOCK_ADMINS;
+  const [admins,  setAdmins]  = useState<AdminAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'users'), where('role', '==', 'admin'));
+    getDocs(q)
+      .then(snap => {
+        setAdmins(snap.docs.map(d => {
+          const data = d.data();
+          const lastActive =
+            data.updatedAt instanceof Timestamp
+              ? data.updatedAt.toDate().toISOString()
+              : data.createdAt instanceof Timestamp
+                ? data.createdAt.toDate().toISOString()
+                : new Date().toISOString();
+          return {
+            id:       d.id,
+            fullName: typeof data.name  === 'string' ? data.name  : 'Admin',
+            email:    typeof data.email === 'string' ? data.email : '',
+            lastActive,
+          };
+        }));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <View style={s.root}>
@@ -28,6 +55,8 @@ export default function AdminAccountsScreen() {
             <Text style={s.countTxt}>{admins.length}</Text>
           </View>
         </View>
+
+        {loading && <ActivityIndicator color={C.primary} style={{ marginTop: 16 }} />}
 
         {admins.map(ad => (
           <View key={ad.id} style={s.adminCard}>

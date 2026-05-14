@@ -14,7 +14,7 @@ import { db } from '../../firebase/firebaseConfig';
 import { createNotification } from '../../services/inAppNotificationService';
 import {
   C, fmtDate, PendingAccount, VerifiedAccount,
-  AppealRequest, MOCK_APPEALS,
+  AppealRequest,
 } from './adminTypes';
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
@@ -339,7 +339,7 @@ function StrikeModal({ visible, account, onClose, onApplyStrike, onBan }: {
 export default function AdminVerificationScreen() {
   const [pendingList,  setPendingList]  = useState<PendingAccount[]>([]);
   const [verifiedList, setVerifiedList] = useState<VerifiedAccount[]>([]);
-  const [appeals,      setAppeals]      = useState<AppealRequest[]>(MOCK_APPEALS);
+  const [appeals,      setAppeals]      = useState<AppealRequest[]>([]);
   const [loadingPending,  setLoadingPending]  = useState(true);
   const [loadingVerified, setLoadingVerified] = useState(true);
 

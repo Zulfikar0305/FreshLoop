@@ -1,5 +1,5 @@
 // screens/business_user/DonateScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,12 @@ import {
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
 import DatePickerField from '../../components/DatePickerField';
+import MapPreview from '../../components/MapPreview';
 import { useAuth } from '../../context/AuthContext';
 import { createDonationListing } from '../../services/donationService';
 import { createNotification } from '../../services/inAppNotificationService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebaseConfig';
 
 
 
@@ -90,16 +93,74 @@ type FormData = {
   qty: string;
   expiry: string;
   desc: string;
+  pickupStartDate: string;
+  pickupEndDate: string;
   pickupFrom: string;
   pickupTo: string;
   pickupAddress: string;
 };
 
 // ── Form (shared across snap + voice methods) ─────────────────────────────────
-function DonationForm({ data, onChange }: {
+function DonationForm({ data, onChange, profileCity, onCoordChange, initialCoord }: {
   data: FormData;
   onChange: (field: keyof FormData, value: string) => void;
+  profileCity?: string;
+  onCoordChange?: (c: { latitude: number; longitude: number }) => void;
+  initialCoord?: { latitude: number; longitude: number };
 }) {
+  const [timeError,    setTimeError]    = React.useState('');
+  const [mapCoord,     setMapCoordLocal] = React.useState<{ latitude: number; longitude: number } | null>(null);
+  const geocodeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasSetInitial = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!hasSetInitial.current && initialCoord) {
+      setMapCoordLocal(initialCoord);
+      hasSetInitial.current = true;
+    }
+  }, [initialCoord]);
+
+  React.useEffect(() => {
+    if (mapCoord) onCoordChange?.(mapCoord);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapCoord]);
+
+  const geocodeAddress = React.useCallback((address: string) => {
+    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
+    if (!address.trim()) return;
+    geocodeTimer.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'FreshLoop/1.0' } });
+        const json = (await res.json()) as Array<{ lat: string; lon: string }>;
+        if (json[0]) {
+          setMapCoordLocal({ latitude: parseFloat(json[0].lat), longitude: parseFloat(json[0].lon) });
+        }
+      } catch { /* geocoding failure is non-fatal */ }
+    }, 500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function formatTimeInput(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) return digits;
+    if (digits.length === 3) return `${digits[0]}${digits[1]}:${digits[2]}`;
+    return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
+  }
+
+  function validatePickupWindow(startDate: string, startTime: string, endDate: string, endTime: string): string {
+    const re = /^\d{2}:\d{2}$/;
+    if (startTime && !re.test(startTime)) return 'Start time must be HH:mm (e.g. 16:00)';
+    if (endTime && !re.test(endTime)) return 'End time must be HH:mm (e.g. 18:00)';
+    if (startDate && startTime && endDate && endTime) {
+      const start = new Date(`${startDate}T${startTime}`);
+      const end   = new Date(`${endDate}T${endTime}`);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end <= start) {
+        return 'End date/time must be after start';
+      }
+    }
+    return '';
+  }
   const card = {
     backgroundColor: '#fff', borderRadius: 20, padding: 18,
     marginBottom: 16, shadowColor: '#000' as const,
@@ -182,22 +243,67 @@ function DonationForm({ data, onChange }: {
         />
 
         <FieldLabel label="Pickup Window" />
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <InputField
-              icon="clock"
-              placeholder="From — 16:00"
-              value={data.pickupFrom} onChangeText={(v) => onChange('pickupFrom', v)}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <InputField
-              icon="clock"
-              placeholder="Until — 18:00"
-              value={data.pickupTo} onChangeText={(v) => onChange('pickupTo', v)}
-            />
-          </View>
+
+        {/* Pickup starts */}
+        <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, paddingTop: 14, paddingHorizontal: 14, marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#2D6A4F', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+            Pickup starts
+          </Text>
+          <DatePickerField
+            value={data.pickupStartDate}
+            onChange={(v) => {
+              onChange('pickupStartDate', v);
+              setTimeError(validatePickupWindow(v, data.pickupFrom, data.pickupEndDate, data.pickupTo));
+            }}
+            format="YYYY-MM-DD"
+            accentColor="#2D6A4F"
+            containerStyle={{ marginBottom: 10 }}
+          />
+          <InputField
+            icon="clock"
+            placeholder="Start time — 16:00"
+            value={data.pickupFrom}
+            onChangeText={(v) => {
+              const fmt = formatTimeInput(v);
+              onChange('pickupFrom', fmt);
+              setTimeError(validatePickupWindow(data.pickupStartDate, fmt, data.pickupEndDate, data.pickupTo));
+            }}
+          />
         </View>
+
+        {/* Pickup ends */}
+        <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, paddingTop: 14, paddingHorizontal: 14, marginBottom: 14, borderWidth: 1, borderColor: '#E2E8F0' }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+            Pickup ends
+          </Text>
+          <DatePickerField
+            value={data.pickupEndDate}
+            onChange={(v) => {
+              onChange('pickupEndDate', v);
+              setTimeError(validatePickupWindow(data.pickupStartDate, data.pickupFrom, v, data.pickupTo));
+            }}
+            format="YYYY-MM-DD"
+            accentColor="#2D6A4F"
+            containerStyle={{ marginBottom: 10 }}
+          />
+          <InputField
+            icon="clock"
+            placeholder="End time — 18:00"
+            value={data.pickupTo}
+            onChangeText={(v) => {
+              const fmt = formatTimeInput(v);
+              onChange('pickupTo', fmt);
+              setTimeError(validatePickupWindow(data.pickupStartDate, data.pickupFrom, data.pickupEndDate, fmt));
+            }}
+          />
+        </View>
+
+        {!!timeError && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -8, marginBottom: 14 }}>
+            <Feather name="alert-circle" size={13} color="#EF4444" />
+            <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '600' }}>{timeError}</Text>
+          </View>
+        )}
       </View>
 
       {/* ── Pickup Location ── */}
@@ -214,75 +320,29 @@ function DonationForm({ data, onChange }: {
           icon="map-pin"
           placeholder="e.g. 45 Berea Road, Durban"
           value={data.pickupAddress}
-          onChangeText={(v) => onChange('pickupAddress', v)}
-        />
-        {/* Map placeholder */}
-        <View style={{
-          height: 140, borderRadius: 14, overflow: 'hidden',
-          backgroundColor: '#E2EBE1', marginBottom: 12,
-          alignItems: 'center', justifyContent: 'center',
-          borderWidth: 1, borderColor: '#D1E8D0',
-        }}>
-          {/* Grid lines to simulate map */}
-          <View style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            opacity: 0.15,
-          }}>
-            {[1,2,3,4].map(i => (
-              <View key={i} style={{
-                position: 'absolute',
-                top: `${i * 25}%`, left: 0, right: 0,
-                height: 1, backgroundColor: '#2D6A4F',
-              }} />
-            ))}
-            {[1,2,3,4,5].map(i => (
-              <View key={i} style={{
-                position: 'absolute',
-                left: `${i * 20}%`, top: 0, bottom: 0,
-                width: 1, backgroundColor: '#2D6A4F',
-              }} />
-            ))}
-          </View>
-
-          {/* Pin */}
-          <View style={{ alignItems: 'center' }}>
-            <View style={{
-              width: 40, height: 40, borderRadius: 20,
-              backgroundColor: '#2D6A4F',
-              alignItems: 'center', justifyContent: 'center',
-              shadowColor: '#000', shadowOpacity: 0.3,
-              shadowRadius: 6, elevation: 4,
-            }}>
-              <Feather name="map-pin" size={20} color="#fff" />
-            </View>
-            <View style={{
-              backgroundColor: 'rgba(255,255,255,0.95)',
-              borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
-              marginTop: 8,
-            }}>
-              <Text style={{
-                fontSize: 11, fontWeight: '700', color: '#2D6A4F',
-              }}>
-                {data.pickupAddress || 'Enter address above'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => Alert.alert('Adjust Pickup Pin', 'Drop a pin on the map to set a more precise pickup location for this donation. Drivers will use this to navigate to you.', [{ text: 'OK' }])}
-          style={{
-            flexDirection: 'row', alignItems: 'center', gap: 6,
+          onChangeText={(v) => {
+            onChange('pickupAddress', v);
+            geocodeAddress(v);
           }}
-        >
-          <Feather name="edit-2" size={13} color="#2D6A4F" />
-          <Text style={{
-            fontSize: 13, color: '#2D6A4F', fontWeight: '700',
-          }}>
-            Adjust pin for this pickup
-          </Text>
-        </TouchableOpacity>
+        />
+        {/* Map preview — live geocoding + tap-to-pin */}
+        <MapPreview
+          profileCity={profileCity || 'Durban'}
+          latitude={mapCoord?.latitude}
+          longitude={mapCoord?.longitude}
+          usePhoneLocation={!mapCoord}
+          useRegion
+          height={160}
+          markerTitle={data.pickupAddress || 'Pickup area'}
+          markerDescription={data.pickupAddress || undefined}
+          markerVariant="pickup"
+          draggable
+          onMapPress={(c) => setMapCoordLocal(c)}
+          onMarkerDragEnd={(c) => setMapCoordLocal(c)}
+        />
+        <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 6, marginBottom: 2, textAlign: 'center' }}>
+          Tap the map to fine-tune the pin position
+        </Text>
       </View>
     </>
   );
@@ -436,21 +496,49 @@ export default function DonateScreen() {
   const [voiceActive, setVoiceActive] = useState(false);
   const [loading,     setLoading]     = useState(false);
   const [donationId,  setDonationId]  = useState('');
+  const [mapCoord,    setMapCoord]    = useState<{ latitude: number; longitude: number } | null>(null);
+  const [dockCoord,   setDockCoord]   = useState<{ latitude: number; longitude: number } | null>(null);
   const [form, setForm] = useState<FormData>({
     foodName: '', category: '', qty: '', expiry: '',
-    desc: '', pickupFrom: '', pickupTo: '', pickupAddress: '',
+    desc: '', pickupStartDate: '', pickupEndDate: '', pickupFrom: '', pickupTo: '', pickupAddress: '',
   });
 
   const handleChange = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
   const resetForm = () => {
-    setForm({ foodName: '', category: '', qty: '', expiry: '', desc: '', pickupFrom: '', pickupTo: '', pickupAddress: '' });
+    setForm({ foodName: '', category: '', qty: '', expiry: '', desc: '', pickupStartDate: '', pickupEndDate: '', pickupFrom: '', pickupTo: '', pickupAddress: '' });
     setMethod(null);
     setVoiceActive(false);
     setDonationId('');
+    setMapCoord(null);
     setSubmitted(false);
   };
+
+  useEffect(() => {
+    if (!session?.userId) return;
+    getDoc(doc(db, 'users', session.userId)).then(snap => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      const addr      = typeof d.loadingDockAddress   === 'string' ? d.loadingDockAddress   : '';
+      const lat       = typeof d.loadingDockLatitude  === 'number' ? d.loadingDockLatitude  : null;
+      const lng       = typeof d.loadingDockLongitude === 'number' ? d.loadingDockLongitude : null;
+      const openTime  = typeof d.operatingHours?.weekdayOpen  === 'string' ? (d.operatingHours.weekdayOpen  as string) : '';
+      const closeTime = typeof d.operatingHours?.weekdayClose === 'string' ? (d.operatingHours.weekdayClose as string) : '';
+      setForm(prev => ({
+        ...prev,
+        pickupAddress: prev.pickupAddress || addr,
+        pickupFrom:    prev.pickupFrom    || openTime,
+        pickupTo:      prev.pickupTo      || closeTime,
+      }));
+      if (lat !== null && lng !== null) {
+        const coord = { latitude: lat, longitude: lng };
+        setMapCoord(coord);
+        setDockCoord(coord);
+      }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.userId]);
 
   const handlePublish = async () => {
     if (!session?.userId) {
@@ -473,13 +561,45 @@ export default function DonateScreen() {
       Alert.alert('Missing info', 'Please enter a pickup address.');
       return;
     }
+    if (!form.pickupStartDate.trim()) {
+      Alert.alert('Missing info', 'Please enter a pickup start date.');
+      return;
+    }
+    if (!form.pickupEndDate.trim()) {
+      Alert.alert('Missing info', 'Please enter a pickup end date.');
+      return;
+    }
+    if (!form.pickupFrom.trim()) {
+      Alert.alert('Missing info', 'Please enter a start time (e.g. 16:00).');
+      return;
+    }
+    if (!form.pickupTo.trim()) {
+      Alert.alert('Missing info', 'Please enter an end time (e.g. 18:00).');
+      return;
+    }
+    const timeRe = /^\d{2}:\d{2}$/;
+    if (!timeRe.test(form.pickupFrom)) {
+      Alert.alert('Invalid time', 'Start time must be in HH:mm format (e.g. 16:00).');
+      return;
+    }
+    if (!timeRe.test(form.pickupTo)) {
+      Alert.alert('Invalid time', 'End time must be in HH:mm format (e.g. 18:00).');
+      return;
+    }
+    const pickupStart = new Date(`${form.pickupStartDate}T${form.pickupFrom}`);
+    const pickupEnd   = new Date(`${form.pickupEndDate}T${form.pickupTo}`);
+    if (!isNaN(pickupStart.getTime()) && !isNaN(pickupEnd.getTime()) && pickupEnd <= pickupStart) {
+      Alert.alert('Invalid pickup window', 'End date/time must be after start date/time.');
+      return;
+    }
+    const donorName = session?.name || session?.email?.split('@')[0] || 'Business Donor';
     setLoading(true);
     try {
-      const pickupWindow = [form.pickupFrom, form.pickupTo].filter(Boolean).join(' – ');
+      const pickupWindow = `${form.pickupStartDate} ${form.pickupFrom} – ${form.pickupEndDate} ${form.pickupTo}`;
       const id = await createDonationListing({
         donorId: session.userId,
         donorRole: session.role as 'home' | 'business',
-        donorName: session.name,
+        donorName,
         foodName: form.foodName,
         quantity: form.qty,
         unit: '',
@@ -488,7 +608,9 @@ export default function DonateScreen() {
         expiryDate: form.expiry,
         pickupAddress: form.pickupAddress,
         pickupWindow,
-        city: 'Durban',
+        city: session?.city || 'Durban',
+        latitude: mapCoord?.latitude,
+        longitude: mapCoord?.longitude,
         notes: '',
       });
       setDonationId(id);
@@ -507,7 +629,7 @@ export default function DonateScreen() {
   };
 
   if (submitted) {
-    const pickupWindow = [form.pickupFrom, form.pickupTo].filter(Boolean).join(' – ');
+    const pickupWindow = `${form.pickupStartDate} ${form.pickupFrom} – ${form.pickupEndDate} ${form.pickupTo}`.trim();
     return (
       <SuccessState
         donationId={donationId}
@@ -555,403 +677,27 @@ export default function DonateScreen() {
           List surplus food for nearby NPOs to claim.
         </Text>
 
-        {/* ── Method selector ── */}
-        {!method && (
-          <>
-            <Text style={{
-              color: '#94A3B8', fontSize: 11, fontWeight: '700',
-              letterSpacing: 1, marginBottom: 10, paddingLeft: 2,
-            }}>
-              CHOOSE ENTRY METHOD
-            </Text>
+        <DonationForm data={form} onChange={handleChange} profileCity={session?.city || 'Durban'} onCoordChange={setMapCoord} initialCoord={dockCoord ?? undefined} />
 
-            {/* Snap + Voice cards */}
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-              {[
-                {
-                  id: 'snap' as const,
-                  icon: 'camera' as const,
-                  title: 'Camera Entry',
-                  sub: 'Coming soon',
-                  color: '#94A3B8',
-                  bg: 'rgba(148,163,184,0.1)',
-                },
-                {
-                  id: 'voice' as const,
-                  icon: 'mic' as const,
-                  title: 'Voice & Manual Entry',
-                  sub: 'Speak or fill the form manually',
-                  color: '#F97316',
-                  bg: 'rgba(249,115,22,0.1)',
-                },
-              ].map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  onPress={() => setMethod(item.id)}
-                  activeOpacity={0.8}
-                  style={{
-                    flex: 1, backgroundColor: '#fff',
-                    borderRadius: 20, padding: 18,
-                    alignItems: 'center',
-                    borderWidth: 1.5, borderColor: '#E2E8F0',
-                    shadowColor: '#000', shadowOpacity: 0.05,
-                    shadowRadius: 8, elevation: 2,
-                  }}
-                >
-                  <View style={{
-                    width: 52, height: 52, borderRadius: 16,
-                    backgroundColor: item.bg,
-                    alignItems: 'center', justifyContent: 'center',
-                    marginBottom: 12,
-                  }}>
-                    <Feather name={item.icon} size={24} color={item.color} />
-                  </View>
-                  <Text style={{
-                    fontWeight: '700', fontSize: 13,
-                    color: '#1E293B', textAlign: 'center',
-                    marginBottom: 4,
-                  }}>
-                    {item.title}
-                  </Text>
-                  <Text style={{
-                    fontSize: 11, color: '#94A3B8',
-                    textAlign: 'center', lineHeight: 16,
-                  }}>
-                    {item.sub}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* CSV Import */}
-            <TouchableOpacity
-              onPress={() => setMethod('csv')}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: '#fff', borderRadius: 20,
-                borderWidth: 1.5, borderColor: '#E2E8F0',
-                borderStyle: 'dashed',
-                padding: 18, flexDirection: 'row',
-                alignItems: 'center', gap: 14,
-                shadowColor: '#000', shadowOpacity: 0.03,
-                shadowRadius: 6, elevation: 1,
-              }}
-            >
-              <View style={{
-                width: 48, height: 48, borderRadius: 14,
-                backgroundColor: 'rgba(96,165,250,0.1)',
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Feather name="upload" size={22} color="#60A5FA" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{
-                  fontWeight: '700', fontSize: 14, color: '#1E293B',
-                }}>
-                  Import CSV
-                </Text>
-                <Text style={{
-                  fontSize: 12, color: '#94A3B8', marginTop: 2,
-                }}>
-                  Bulk listings from a spreadsheet
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color="#CBD5E1" />
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── Back button (when method selected) ── */}
-        {method && (
-          <TouchableOpacity
-            onPress={() => { setMethod(null); setVoiceActive(false); }}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row', alignItems: 'center',
-              gap: 6, marginBottom: 20,
-            }}
-          >
-            <Feather name="arrow-left" size={16} color="#2D6A4F" />
-            <Text style={{
-              color: '#2D6A4F', fontSize: 13, fontWeight: '700',
-            }}>
-              Change method
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Smart Snap ── */}
-        {method === 'snap' && (
-          <>
-            <Text style={{
-              color: '#94A3B8', fontSize: 11, fontWeight: '700',
-              letterSpacing: 1, marginBottom: 10, paddingLeft: 2,
-            }}>
-              CAPTURE ITEMS
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => Alert.alert('Camera Entry', 'Camera item capture will be available in the full release.')}
-              style={{
-                backgroundColor: '#fff',
-                borderWidth: 1.5, borderColor: '#E2E8F0',
-                borderStyle: 'dashed', borderRadius: 20,
-                height: 180, alignItems: 'center',
-                justifyContent: 'center', marginBottom: 20,
-                shadowColor: '#000', shadowOpacity: 0.03,
-                shadowRadius: 6, elevation: 1,
-              }}
-            >
-              <View style={{
-                width: 60, height: 60, borderRadius: 18,
-                backgroundColor: 'rgba(45,106,79,0.1)',
-                alignItems: 'center', justifyContent: 'center',
-                marginBottom: 12,
-              }}>
-                <Feather name="camera" size={28} color="#2D6A4F" />
-              </View>
-              <Text style={{
-                fontWeight: '700', color: '#1E293B',
-                fontSize: 14, marginBottom: 4,
-              }}>
-                Camera entry coming soon
-              </Text>
-              <Text style={{ fontSize: 12, color: '#94A3B8' }}>
-                Fill in the form below after taking your photo
-              </Text>
-            </TouchableOpacity>
-
-            <DonationForm data={form} onChange={handleChange} />
-
-            <TouchableOpacity
-              onPress={handlePublish}
-              disabled={loading}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: '#2D6A4F', borderRadius: 14,
-                paddingVertical: 15, alignItems: 'center',
-                flexDirection: 'row', justifyContent: 'center',
-                gap: 8, marginTop: 4,
-                shadowColor: '#2D6A4F',
-                shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <><Feather name="send" size={18} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Publish Listing</Text></>
-              }
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── Voice & Manual ── */}
-        {method === 'voice' && (
-          <>
-            <Text style={{
-              color: '#94A3B8', fontSize: 11, fontWeight: '700',
-              letterSpacing: 1, marginBottom: 10, paddingLeft: 2,
-            }}>
-              VOICE ENTRY
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => setVoiceActive(v => !v)}
-              activeOpacity={0.8}
-              style={{
-                padding: 24, borderRadius: 20,
-                backgroundColor: voiceActive
-                  ? 'rgba(239,68,68,0.07)'
-                  : 'rgba(45,106,79,0.07)',
-                borderWidth: 1.5,
-                borderColor: voiceActive ? '#EF4444' : '#2D6A4F',
-                alignItems: 'center', marginBottom: 20,
-              }}
-            >
-              <View style={{
-                width: 60, height: 60, borderRadius: 30,
-                backgroundColor: voiceActive
-                  ? 'rgba(239,68,68,0.12)'
-                  : 'rgba(45,106,79,0.12)',
-                alignItems: 'center', justifyContent: 'center',
-                marginBottom: 12,
-              }}>
-                <Feather
-                  name={voiceActive ? 'mic-off' : 'mic'}
-                  size={28}
-                  color={voiceActive ? '#EF4444' : '#2D6A4F'}
-                />
-              </View>
-              <Text style={{
-                fontWeight: '700', fontSize: 15,
-                color: voiceActive ? '#EF4444' : '#2D6A4F',
-              }}>
-                {voiceActive
-                  ? 'Recording... Tap to stop'
-                  : 'Tap to start voice entry'}
-              </Text>
-
-              {/* Waveform */}
-              {voiceActive && (
-                <View style={{
-                  flexDirection: 'row', gap: 3,
-                  alignItems: 'center', marginTop: 12,
-                }}>
-                  {[8, 14, 6, 18, 10, 16, 7, 12, 9, 15].map((h, i) => (
-                    <View key={i} style={{
-                      width: 4, height: h,
-                      backgroundColor: '#EF4444',
-                      borderRadius: 2, opacity: 0.8,
-                    }} />
-                  ))}
-                </View>
-              )}
-
-              {!voiceActive && (
-                <Text style={{
-                  fontSize: 12, color: '#64748B',
-                  marginTop: 6, textAlign: 'center',
-                }}>
-                  Speak naturally — e.g. "45 kg of mixed bread, expires tomorrow"
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <DonationForm data={form} onChange={handleChange} />
-
-            <TouchableOpacity
-              onPress={handlePublish}
-              disabled={loading}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: '#2D6A4F', borderRadius: 14,
-                paddingVertical: 15, alignItems: 'center',
-                flexDirection: 'row', justifyContent: 'center',
-                gap: 8, marginTop: 4,
-                shadowColor: '#2D6A4F',
-                shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <><Feather name="send" size={18} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Publish Listing</Text></>
-              }
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── CSV Import ── */}
-        {method === 'csv' && (
-          <>
-            <Text style={{
-              color: '#94A3B8', fontSize: 11, fontWeight: '700',
-              letterSpacing: 1, marginBottom: 10, paddingLeft: 2,
-            }}>
-              BULK IMPORT
-            </Text>
-
-            {/* Upload card */}
-            <View style={card}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => Alert.alert('CSV Import', 'CSV bulk import will be available in the full release.')}
-                style={{
-                  borderWidth: 1.5, borderColor: '#E2E8F0',
-                  borderStyle: 'dashed', borderRadius: 14,
-                  padding: 24, alignItems: 'center',
-                  backgroundColor: '#F8FAFC', marginBottom: 14,
-                }}
-              >
-                <View style={{
-                  width: 56, height: 56, borderRadius: 16,
-                  backgroundColor: 'rgba(96,165,250,0.1)',
-                  alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 12,
-                }}>
-                  <Feather name="file-text" size={26} color="#60A5FA" />
-                </View>
-                <Text style={{
-                  fontWeight: '700', fontSize: 14,
-                  color: '#1E293B', marginBottom: 4,
-                }}>
-                  Upload CSV File
-                </Text>
-                <Text style={{
-                  fontSize: 12, color: '#94A3B8', textAlign: 'center',
-                }}>
-                  .csv format only · Max 5MB
-                </Text>
-              </TouchableOpacity>
-
-              {/* Column guide */}
-              <View style={{
-                backgroundColor: 'rgba(96,165,250,0.07)',
-                borderRadius: 12, padding: 12,
-              }}>
-                <Text style={{
-                  color: '#60A5FA', fontSize: 11,
-                  fontWeight: '700', marginBottom: 6,
-                }}>
-                  REQUIRED COLUMNS
-                </Text>
-                {[
-                  'item_name', 'quantity', 'unit',
-                  'expiry_date', 'food_category',
-                ].map(col => (
-                  <View key={col} style={{
-                    flexDirection: 'row', alignItems: 'center',
-                    gap: 6, marginBottom: 3,
-                  }}>
-                    <View style={{
-                      width: 5, height: 5, borderRadius: 3,
-                      backgroundColor: '#60A5FA',
-                    }} />
-                    <Text style={{
-                      fontSize: 12, color: '#475569',
-                      fontFamily: 'monospace', fontWeight: '600',
-                    }}>
-                      {col}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-              <View style={{
-                flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-                backgroundColor: '#FFFBEB',
-                borderRadius: 14, borderWidth: 1,
-                borderColor: 'rgba(251,191,36,0.3)',
-                padding: 14, marginBottom: 16,
-              }}>
-                <Feather name="clock" size={15} color="#D97706" style={{ marginTop: 1 }} />
-                <Text style={{
-                  flex: 1, color: '#92400E',
-                  fontSize: 12, lineHeight: 18, fontWeight: '500',
-                }}>
-                  CSV bulk import is not yet available. This feature will be enabled in the full release.
-                </Text>
-              </View>
-
-            <TouchableOpacity
-              onPress={() => Alert.alert('CSV Import', 'CSV bulk import will be available in the full release.')}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: '#94A3B8', borderRadius: 14,
-                paddingVertical: 15, alignItems: 'center',
-                flexDirection: 'row', justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              <Feather name="clock" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
-                Coming Soon
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity
+          onPress={handlePublish}
+          disabled={loading}
+          activeOpacity={0.85}
+          style={{
+            backgroundColor: '#2D6A4F', borderRadius: 14,
+            paddingVertical: 15, alignItems: 'center',
+            flexDirection: 'row', justifyContent: 'center',
+            gap: 8, marginTop: 4,
+            shadowColor: '#2D6A4F',
+            shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <><Feather name="send" size={18} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Publish Listing</Text></>
+          }
+        </TouchableOpacity>
 
       </ScrollView>
     </View>

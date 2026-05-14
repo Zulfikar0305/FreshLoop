@@ -29,7 +29,19 @@
     },
     "plugins": [
       "expo-notifications",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow FreshLoop to access your photos to upload food images."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow FreshLoop to use your location to show nearby food donations on the map."
+        }
+      ]
     ]
   }
 }

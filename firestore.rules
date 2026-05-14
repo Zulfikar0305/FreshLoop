@@ -48,10 +48,10 @@ service cloud.firestore {
     match /donations/{donationId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.donorId == request.auth.uid;
       allow update: if signedIn();
       allow delete: if signedIn()
-        && (resource.data.userId == request.auth.uid || isAdmin());
+        && (resource.data.donorId == request.auth.uid || isAdmin());
     }
 
     match /reports/{reportId} {

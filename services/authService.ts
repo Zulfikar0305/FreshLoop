@@ -58,6 +58,14 @@ export async function clearSession(): Promise<void> {
   try { await firebaseSignOut(auth); } catch {}
 }
 
+/** Merge a partial update into the persisted session (e.g. city, name). */
+export async function patchSession(patch: Partial<AuthSession>): Promise<void> {
+  const raw = await AsyncStorage.getItem(SESSION_KEY);
+  if (!raw) return;
+  const current = JSON.parse(raw) as AuthSession;
+  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ ...current, ...patch }));
+}
+
 export async function setBiometricFlag(value: boolean): Promise<void> {
   await AsyncStorage.setItem(BIOMETRIC_FLAG_KEY, value ? 'true' : 'false');
 }

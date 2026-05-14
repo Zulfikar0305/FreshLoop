@@ -15,6 +15,7 @@ import CustomHeader from "../../components/CustomHeader";
 import { useAuth } from "../../context/AuthContext";
 import { db } from '../../services/firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { patchSession } from '../../services/authService';
 
 type Driver = { id: string; name: string; phone: string; active: boolean };
 type VerificationDoc = { fileName: string; docType: string; uploadedAt: string };
@@ -23,7 +24,7 @@ const FOOD_TYPES = ["Fresh Produce", "Baked Goods", "Dairy", "Dry Goods", "Prepa
 
 export default function CoordinatorProfileScreen() {
   const navigation = useNavigation<any>();
-  const { session } = useAuth();
+  const { session, setSession } = useAuth();
   const [radius, setRadius] = useState(25);
   const [selectedFoodTypes, setSelectedFoodTypes] = useState(["Fresh Produce", "Baked Goods", "Dairy"]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -92,6 +93,12 @@ export default function CoordinatorProfileScreen() {
         },
       }, { merge: true });
       Alert.alert('Saved', 'Your coordinator profile has been saved.');
+      // Update in-memory session and persist so OperationsMap picks up new city immediately
+      if (session) {
+        const updated = { ...session, city };
+        setSession(updated);
+        patchSession({ city }).catch(() => {});
+      }
     } catch {
       Alert.alert('Error', 'Could not save profile. Please try again.');
     }
@@ -176,7 +183,7 @@ export default function CoordinatorProfileScreen() {
         {/* Quick Links */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
           <TouchableOpacity
-            onPress={() => navigation.navigate("SecuritySettings")}
+            onPress={() => navigation.navigate("NPOSecurity")}
             activeOpacity={0.8}
             style={{ flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}
           >
