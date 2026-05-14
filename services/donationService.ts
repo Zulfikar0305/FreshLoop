@@ -116,6 +116,17 @@ export async function createDonationListing(input: CreateDonationInput): Promise
     if (!isNaN(d.getTime())) visibleUntilTs = Timestamp.fromDate(d);
   }
 
+  // Phase 1 — safe service-layer debug (no tokens/emails)
+  console.log('[Donation service debug]', {
+    authUid:         currentUid,
+    donorRole:       input.donorRole,
+    donorName:       (input.donorName || 'Business Donor').trim() || 'Business Donor',
+    status:          'available',
+    hasPickupAddress: !!input.pickupAddress.trim(),
+    latitude:        input.latitude ?? null,
+    longitude:       input.longitude ?? null,
+  });
+
   const ref = await addDoc(collection(db, 'donations'), {
     donorId: currentUid,
     donorRole: input.donorRole,

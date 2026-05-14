@@ -18,7 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { createDonationListing } from '../../services/donationService';
 import { createNotification } from '../../services/inAppNotificationService';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebaseConfig';
+import { auth, db } from '../../services/firebaseConfig';
 
 
 
@@ -498,6 +498,7 @@ export default function DonateScreen() {
   const [donationId,  setDonationId]  = useState('');
   const [mapCoord,    setMapCoord]    = useState<{ latitude: number; longitude: number } | null>(null);
   const [dockCoord,   setDockCoord]   = useState<{ latitude: number; longitude: number } | null>(null);
+  const [dockAddress, setDockAddress] = useState('');
   const [form, setForm] = useState<FormData>({
     foodName: '', category: '', qty: '', expiry: '',
     desc: '', pickupStartDate: '', pickupEndDate: '', pickupFrom: '', pickupTo: '', pickupAddress: '',
@@ -525,6 +526,8 @@ export default function DonateScreen() {
       const lng       = typeof d.loadingDockLongitude === 'number' ? d.loadingDockLongitude : null;
       const openTime  = typeof d.operatingHours?.weekdayOpen  === 'string' ? (d.operatingHours.weekdayOpen  as string) : '';
       const closeTime = typeof d.operatingHours?.weekdayClose === 'string' ? (d.operatingHours.weekdayClose as string) : '';
+      // Always remember the saved dock address so we can fall back to it during publish
+      setDockAddress(addr);
       setForm(prev => ({
         ...prev,
         pickupAddress: prev.pickupAddress || addr,
@@ -545,6 +548,14 @@ export default function DonateScreen() {
       Alert.alert('Not signed in', 'Please sign in to publish a donation listing.');
       return;
     }
+    // Phase 2 — hard auth guard: session exists but Firebase token may have expired
+    if (!auth.currentUser?.uid) {
+      Alert.alert(
+        'Session expired',
+        'Your login session expired. Please sign out and sign in again.',
+      );
+      return;
+    }
     if (!form.foodName.trim()) {
       Alert.alert('Missing info', 'Please enter a food name.');
       return;
@@ -557,7 +568,14 @@ export default function DonateScreen() {
       Alert.alert('Missing info', 'Please enter a quantity.');
       return;
     }
-    if (!form.pickupAddress.trim()) {
+    // Phase 3 — location fallback: if address is blank but dock coords are loaded, use dock address
+    if (!form.pickupAddress.trim() && mapCoord) {
+      const fallback = dockAddress.trim() || 'Business loading dock';
+      setForm(prev => ({ ...prev, pickupAddress: fallback }));
+      // form.pickupAddress won't update synchronously; use local var for publish payload
+    }
+    const effectiveAddress = form.pickupAddress.trim() || (mapCoord ? (dockAddress.trim() || 'Business loading dock') : '');
+    if (!effectiveAddress) {
       Alert.alert('Missing info', 'Please enter a pickup address.');
       return;
     }
@@ -593,6 +611,18 @@ export default function DonateScreen() {
       return;
     }
     const donorName = session?.name || session?.email?.split('@')[0] || 'Business Donor';
+
+    // Phase 1 — safe publish debug (no private data)
+    console.log('[Donate publish debug]', {
+      sessionUserId: session?.userId,
+      sessionRole:   session?.role,
+      authUid:       auth.currentUser?.uid,
+      pickupAddress: effectiveAddress,
+      hasMapCoord:   !!mapCoord,
+      latitudeType:  typeof mapCoord?.latitude,
+      longitudeType: typeof mapCoord?.longitude,
+    });
+
     setLoading(true);
     try {
       const pickupWindow = `${form.pickupStartDate} ${form.pickupFrom} – ${form.pickupEndDate} ${form.pickupTo}`;
@@ -606,7 +636,7 @@ export default function DonateScreen() {
         category: form.category,
         storageInstructions: form.desc,
         expiryDate: form.expiry,
-        pickupAddress: form.pickupAddress,
+        pickupAddress: effectiveAddress,
         pickupWindow,
         city: session?.city || 'Durban',
         latitude: mapCoord?.latitude,
@@ -621,8 +651,20 @@ export default function DonateScreen() {
       }).catch(() => {});
       setSubmitted(true);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Could not publish listing.';
-      Alert.alert('Error', msg);
+      // Phase 5 — detailed error reporting
+      console.error('[Donate publish failed]', e);
+      const code = e != null && typeof e === 'object' && 'code' in e
+        ? (e as { code: string }).code
+        : '';
+      let msg = 'Could not publish listing.';
+      if (code === 'permission-denied') {
+        msg = 'Permission denied (permission-denied). Please sign out and sign in again, then retry.';
+      } else if (code === 'unauthenticated') {
+        msg = 'Not authenticated (unauthenticated). Please sign out and sign in again.';
+      } else if (e instanceof Error) {
+        msg = e.message;
+      }
+      Alert.alert('Publish failed', msg);
     } finally {
       setLoading(false);
     }
