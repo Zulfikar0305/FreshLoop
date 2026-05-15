@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -41,6 +42,100 @@ function getDaysLeft(expiryDate: Date | null): number {
   return Math.ceil((exp.getTime() - today.getTime()) / 86400000);
 }
 
+// ── Gemini chat call ─────────────────────────────────────────────────────────
+const GEMINI_CHAT_MODEL = 'gemini-2.0-flash';
+
+async function callGeminiChat(
+  userMessage: string,
+  pantry: InventoryItem[],
+): Promise<string> {
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
+  if (!apiKey) {
+    console.warn('[FreshBot] EXPO_PUBLIC_GEMINI_API_KEY is not set — local fallback will be used');
+    throw new Error('No key');
+  }
+  console.log(`[FreshBot] Gemini call · key present · pantry items: ${pantry.length}`);
+
+  const pantryBlock =
+    pantry.length === 0
+      ? 'No pantry items.'
+      : pantry
+          .map(i => {
+            const expPart = i.expiryDate
+              ? (() => {
+                  const d = getDaysLeft(i.expiryDate);
+                  return d <= 0
+                    ? 'expired'
+                    : d === 1
+                    ? 'expires tomorrow'
+                    : `expires in ${d} days`;
+                })()
+              : null;
+            return [
+              `- ${i.name}`,
+              i.category ? `(${i.category})` : null,
+              i.quantity && i.unit ? `${i.quantity} ${i.unit}` : null,
+              expPart,
+              i.storageLocation ? `in ${i.storageLocation}` : null,
+            ]
+              .filter(Boolean)
+              .join(' ');
+          })
+          .join('\n');
+
+  const prompt = `You are FreshBot, the AI food-saving assistant built into the FreshLoop app.
+
+FreshLoop features:
+- Smart Pantry: add and track food items with expiry dates
+- AI Recipes: tap Generate to get Gemini-powered recipes from your pantry
+- Meal Planner: weekly meal plan built from pantry stock
+- Donation Hub: donate surplus food; NPOs claim it on their Operations Map
+- Expiry Alerts: warns when items expire within 3 days
+- Waste Analytics: shows which food categories get wasted most
+- Shopping List: synced list, can be updated from Meal Planner
+
+User's current pantry:
+${pantryBlock}
+
+Reply rules:
+1. Be concise and practical — 2 to 6 sentences or up to 6 numbered steps maximum.
+2. For cooking questions: give 2 to 4 meal ideas using the pantry items above, then one quick method for the best idea.
+3. Only use pantry items the user actually has as primary ingredients. Say "if you have..." for any extras not in the list.
+4. For app-help questions: name the exact screen or tab to navigate to.
+5. Do not use markdown headers. Use plain text or numbered steps.
+6. Never say you cannot help — give the best answer you can.
+
+User: ${userMessage}`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CHAT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 512 },
+    }),
+  });
+
+  const data = (await response.json()) as {
+    error?: { message?: string };
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+
+  if (!response.ok) {
+    const reason = data.error?.message ?? `HTTP ${response.status}`;
+    console.warn(`[FreshBot] Gemini failed · status=${response.status} · ${reason}`);
+    throw new Error(reason);
+  }
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) {
+    console.warn('[FreshBot] Gemini returned empty response');
+    throw new Error('Empty Gemini response');
+  }
+  console.log(`[FreshBot] Gemini replied · ${text.length} chars`);
+  return text;
+}
+
 export default function FreshBotScreen() {
   const { session } = useAuth();
   const firstName = session?.name?.split(' ')[0] ?? '';
@@ -54,6 +149,7 @@ export default function FreshBotScreen() {
   }]);
   const scrollRef = useRef<ScrollView>(null);
   const [pantryItems, setPantryItems] = useState<InventoryItem[]>([]);
+  const [isSending,    setIsSending]   = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -303,6 +399,27 @@ export default function FreshBotScreen() {
     if (/waste|wasted|throwing|threw/.test(msg))
       return "📊 Check your Waste Analytics screen for a breakdown of which categories you waste most. Marking items as 'used' or 'wasted' in your pantry keeps the data accurate and helps FreshLoop give better advice.";
 
+    // ── Sandwich / toastie explicit ───────────────────────────────────────────
+    if (/\b(sandwich|toastie|toasted|sub|wrap|roll)\b/.test(msg) && isCooking) {
+      const hasBread = hasPantry(['bread', 'roll', 'wrap', 'bun', 'tortilla', 'pita', 'bagel', 'baguette']);
+      if (!hasBread) {
+        const alt = proteinName || cheeseName || carbName;
+        return alt
+          ? `🍞 A sandwich needs bread — I don't see any in your pantry. With your ${alt}, you could make a quick stir-fry or soup instead. Grab some bread next shop and I'll build you a full toastie recipe!`
+          : "🍞 A sandwich needs bread — add some to your pantry and I'll suggest the perfect filling based on what you have!";
+      }
+      if (proteinName && cheeseName) {
+        return `🍞 With your bread, ${cheeseName} and ${proteinName}, here are your best options:\n\n1. ${cap(cheeseName)} & ${cap(proteinName)} toastie — toast bread, pan-cook ${proteinName}${veggie1Name ? ` with ${veggie1Name}` : ''} for 10 min, add ${cap(cheeseName)}, press in a hot buttered pan until golden.\n2. Open-faced ${cap(proteinName)} sandwich${veggie1Name ? ` with ${cap(veggie1Name)}` : ''}\n3. Cold ${cap(cheeseName)} & ${cap(proteinName)} wrap`;
+      }
+      if (cheeseName) {
+        return `🍞 Toasted ${cheeseName} sandwich:\n\n1. Butter two slices of bread\n2. Add a generous layer of grated ${cheeseName}\n3. Press in a pan on medium heat, 2–3 min per side until golden\n\nTip: add a slice of tomato if you have one!`;
+      }
+      if (proteinName) {
+        return `🍞 ${cap(proteinName)} sandwich:\n\n1. Toast the bread\n2. Pan-cook ${proteinName} with salt and pepper${veggie1Name ? ` and ${veggie1Name}` : ''} for 10–12 min\n3. Layer onto toast, add sauce or mustard if you have it\n\nFor more ideas, open AI Recipes!`;
+      }
+      return "🍞 Plain toast or open sandwich: toast your bread and top with butter or any spread you have. Add cheese or protein to your pantry and I'll build a full filled sandwich!";
+    }
+
     // ── General "what can I cook" ─────────────────────────────────────────────
     if (/\b(cook|make|bake|recipe|prepare|meal|eat|idea)\b/.test(msg)) {
       if (pantryItems.length === 0)
@@ -339,27 +456,52 @@ export default function FreshBotScreen() {
     return '💡 I\'m here to help with cooking ideas, food storage, and reducing waste! Try asking:\n• "How do I use my cheese?"\n• "What can I cook with chicken mince?"\n• "What should I use first?"\n• "Can I freeze milk?"';
   };
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
+  const handleSend = async () => {
+    const trimmed = inputText.trim();
+    if (!trimmed || isSending) return;
 
+    const now = new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
       id: Date.now().toString(),
       sender: 'user',
-      text: inputText.trim(),
-      time: 'Just now',
+      text: trimmed,
+      time: now,
       type: 'text',
     };
+
+    const thinkingId = (Date.now() + 1).toString();
+    const thinkingMsg: Message = {
+      id: thinkingId,
+      sender: 'bot',
+      text: '',
+      time: now,
+      type: 'thinking',
+    };
+
+    setMessages(prev => [...prev, userMsg, thinkingMsg]);
+    setInputText('');
+    setIsSending(true);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+
+    let replyText: string;
+    try {
+      replyText = await callGeminiChat(trimmed, pantryItems);
+    } catch (err) {
+      // Gemini unavailable — fall back to local rule-based reply
+      console.warn(`[FreshBot] Using local fallback — ${err instanceof Error ? err.message : String(err)}`);
+      replyText = getFreshBotReply(trimmed);
+    }
 
     const botReply: Message = {
-      id: (Date.now() + 1).toString(),
+      id: thinkingId,
       sender: 'bot',
-      text: getFreshBotReply(inputText.trim()),
-      time: 'Just now',
+      text: replyText,
+      time: new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }),
       type: 'text',
     };
 
-    setMessages(prev => [...prev, userMsg, botReply]);
-    setInputText('');
+    setMessages(prev => prev.map(m => (m.id === thinkingId ? botReply : m)));
+    setIsSending(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
   };
 
@@ -417,6 +559,7 @@ export default function FreshBotScreen() {
             const isBot        = msg.sender === 'bot';
             const isSuggestion = msg.type === 'suggestion';
             const isWarning    = msg.type === 'warning';
+            const isThinking   = msg.type === 'thinking';
 
             return (
               <View
@@ -452,14 +595,22 @@ export default function FreshBotScreen() {
                     </View>
                   )}
 
-                  <Text style={[
-                    s.bubbleText,
-                    isBot        ? s.bubbleTextBot  : s.bubbleTextUser,
-                    isSuggestion && { color: '#0F766E' },
-                    isWarning    && { color: '#C2410C' },
-                  ]}>
-                    {msg.text}
-                  </Text>
+                  {isThinking ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#2D6A4F"
+                      style={{ marginVertical: 4, marginHorizontal: 4 }}
+                    />
+                  ) : (
+                    <Text style={[
+                      s.bubbleText,
+                      isBot        ? s.bubbleTextBot  : s.bubbleTextUser,
+                      isSuggestion && { color: '#0F766E' },
+                      isWarning    && { color: '#C2410C' },
+                    ]}>
+                      {msg.text}
+                    </Text>
+                  )}
 
                   <Text style={[
                     s.bubbleTime,
@@ -529,9 +680,10 @@ export default function FreshBotScreen() {
             {/* Send or mic */}
             {inputText.trim().length > 0 ? (
               <TouchableOpacity
-                style={s.sendBtn}
+                style={[s.sendBtn, isSending && { opacity: 0.5 }]}
                 onPress={handleSend}
                 activeOpacity={0.85}
+                disabled={isSending}
               >
                 <Feather name="send" size={16} color="#fff" />
               </TouchableOpacity>

@@ -77,11 +77,15 @@ export default function LandingScreen({
   useEffect(() => {
     (async () => {
       try {
-        const [usersSnap, npoSnap, completedSnap] = await Promise.all([
-          getCountFromServer(collection(db, 'users')),
-          getCountFromServer(query(collection(db, 'users'), where('role', 'in', ['npo', 'coordinator']))),
-          getCountFromServer(query(collection(db, 'donations'), where('status', '==', 'completed'))),
-        ]);
+        // Run sequentially — if 'users' is permission-denied, the rest are
+        // skipped immediately, keeping Firestore warnings to a minimum.
+        const usersSnap = await getCountFromServer(collection(db, 'users'));
+        const npoSnap = await getCountFromServer(
+          query(collection(db, 'users'), where('role', 'in', ['npo', 'coordinator'])),
+        );
+        const completedSnap = await getCountFromServer(
+          query(collection(db, 'donations'), where('status', '==', 'completed')),
+        );
         const kgEst = completedSnap.data().count * 5;
         setStats([
           { value: kgEst > 0 ? `~${kgEst}kg` : '—', label: 'Food Saved' },
@@ -89,7 +93,7 @@ export default function LandingScreen({
           { value: npoSnap.data().count > 0 ? String(npoSnap.data().count) : '—', label: 'NPO Partners' },
         ]);
       } catch {
-        // leave '—' fallback values
+        // Firestore read blocked (permission-denied) — keep '—' fallback values
       }
     })();
   }, []);;
