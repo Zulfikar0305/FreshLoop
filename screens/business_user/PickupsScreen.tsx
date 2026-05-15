@@ -27,6 +27,7 @@ type Pickup = {
   driver: string;
   status: Status;
   distance: string;
+  pickupWindow: string;
 };
 
 function toPickup(d: DonationListing): Pickup {
@@ -35,7 +36,7 @@ function toPickup(d: DonationListing): Pickup {
   const status: Status =
     d.status === 'completed' ? 'Completed' :
     d.status === 'claimed'   ? 'Claimed'   : 'Available';
-  return { id: d.id, item, npo: d.claimedByName ?? '—', driver: '—', status, distance: '—' };
+  return { id: d.id, item, npo: d.claimedByName ?? '—', driver: '—', status, distance: '—', pickupWindow: d.pickupWindow || '—' };
 }
 
 function statusStyle(status: Status) {
@@ -102,6 +103,7 @@ export default function PickupsScreen() {
   const [showQR,       setShowQR]       = useState(false);
   const [msgInput,     setMsgInput]     = useState('');
   const [messages,     setMessages]     = useState<{from:string;text:string;time:string}[]>([]);
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Claimed' | 'Available' | 'Completed'>('All');
 
   useEffect(() => {
     const uid = session?.userId;
@@ -114,6 +116,7 @@ export default function PickupsScreen() {
   }, [session?.userId]);
 
   const selected = activePickup !== null ? pickups.find(p => p.id === activePickup) : null;
+  const visiblePickups = filterStatus === 'All' ? pickups : pickups.filter(p => p.status === filterStatus);
 
   const sendMsg = () => {
     if (msgInput.trim()) {
@@ -150,16 +153,39 @@ export default function PickupsScreen() {
         {!activePickup ? (
           <>
             <SectionLabel text="Live Pickup Queue" />
+            {/* ── Status filter chips ── */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, marginBottom: 16 }}
+            >
+              {(['All', 'Available', 'Claimed', 'Completed'] as const).map(f => (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setFilterStatus(f)}
+                  activeOpacity={0.8}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                    backgroundColor: filterStatus === f ? '#2D6A4F' : '#fff',
+                    borderWidth: 1, borderColor: filterStatus === f ? '#2D6A4F' : '#E2E8F0',
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: filterStatus === f ? '#fff' : '#64748B' }}>
+                    {f}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             {loading ? (
               <View style={{ padding: 32, alignItems: 'center' }}>
                 <ActivityIndicator color="#2D6A4F" />
               </View>
-            ) : pickups.length === 0 ? (
+            ) : visiblePickups.length === 0 ? (
               <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 32, alignItems: 'center', marginBottom: 12 }}>
                 <Feather name="inbox" size={32} color="#CBD5E1" />
                 <Text style={{ color: '#94A3B8', fontSize: 14, fontWeight: '600', marginTop: 12 }}>No active pickups</Text>
               </View>
-            ) : pickups.map(p => {
+            ) : visiblePickups.map(p => {
               const tappable = p.status !== 'Available' && p.status !== 'Completed';
               return (
                 <TouchableOpacity
@@ -187,6 +213,12 @@ export default function PickupsScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                           <Feather name="user" size={11} color="#94A3B8" />
                           <Text style={{ fontSize: 12, color: '#64748B' }}>{p.driver} · {p.distance}</Text>
+                        </View>
+                      )}
+                      {p.pickupWindow !== '—' && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                          <Feather name="clock" size={11} color="#94A3B8" />
+                          <Text style={{ fontSize: 11, color: '#94A3B8' }}>{p.pickupWindow}</Text>
                         </View>
                       )}
                     </View>

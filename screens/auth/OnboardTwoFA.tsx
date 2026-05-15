@@ -2,10 +2,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image, StatusBar,
-  TextInput, Alert,
+  TextInput, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { auth } from '../../firebase/firebaseConfig';
+import { sendOtpCode, verifyOtpCode } from '../../services/authService';
 
 type Method = 'sms' | 'email' | null;
 
@@ -26,7 +28,9 @@ export default function OnboardTwoFA({
 }) {
   const [method,    setMethod]    = useState<Method>(null);
   const [codeSent,  setCodeSent]  = useState(false);
-  const [genCode,   setGenCode]   = useState('');
+  const [genCode,   setGenCode]   = useState('');   // SMS demo path
+  const [sending,   setSending]   = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [entered,   setEntered]   = useState('');
   const [verified,  setVerified]  = useState(false);
   const [error,     setError]     = useState('');
@@ -35,26 +39,54 @@ export default function OnboardTwoFA({
   const totalSteps  = isMandatory ? 5 : 4;
   const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, (_, a, b, c) => a + '*'.repeat(Math.min(b.length, 5)) + c);
 
-  const handleSendCode = () => {
+  const handleSendCode = async () => {
     if (!method) return;
-    const code = generateCode();
-    setGenCode(code);
-    setCodeSent(true);
     setEntered('');
     setError('');
-    Alert.alert(
-      '📱 Demo Mode — OTP Sent',
-      `Your ${method === 'sms' ? 'SMS' : 'email'} verification code is:\n\n${code}\n\n(In production this would arrive via ${method === 'sms' ? 'SMS to your registered number' : `email to ${maskedEmail}`}.)`,
-      [{ text: 'Got it', style: 'default' }],
-    );
+    if (method === 'email') {
+      const uid = auth.currentUser?.uid;
+      if (!uid) { setError('Session expired. Please sign in again.'); return; }
+      setSending(true);
+      const result = await sendOtpCode(uid, email, role);
+      setSending(false);
+      if (result.success) {
+        setCodeSent(true);
+      } else {
+        setError(result.error ?? 'Could not send code.');
+      }
+    } else {
+      // SMS — demo Alert (real SMS not configured)
+      const code = generateCode();
+      setGenCode(code);
+      setCodeSent(true);
+      Alert.alert(
+        '📱 Demo Mode — SMS OTP',
+        `Your SMS verification code is:\n\n${code}\n\n(In production this would arrive via SMS to your registered number.)`,
+        [{ text: 'Got it', style: 'default' }],
+      );
+    }
   };
 
-  const handleVerify = () => {
-    if (entered.trim() === genCode) {
-      setVerified(true);
-      setError('');
+  const handleVerify = async () => {
+    if (method === 'email') {
+      const uid = auth.currentUser?.uid;
+      if (!uid) { setError('Session expired. Please sign in again.'); return; }
+      setVerifying(true);
+      const result = await verifyOtpCode(uid, entered);
+      setVerifying(false);
+      if (result.success) {
+        setVerified(true);
+        setError('');
+      } else {
+        setError(result.error ?? 'Incorrect code — check and try again.');
+      }
     } else {
-      setError('Incorrect code — check and try again.');
+      if (entered.trim() === genCode) {
+        setVerified(true);
+        setError('');
+      } else {
+        setError('Incorrect code — check and try again.');
+      }
     }
   };
 
@@ -210,7 +242,7 @@ export default function OnboardTwoFA({
             <TouchableOpacity
               onPress={handleSendCode}
               activeOpacity={0.85}
-              disabled={!method}
+              disabled={!method || sending}
               style={{
                 backgroundColor: method ? '#2D6A4F' : '#CBD5E1',
                 borderRadius: 14, paddingVertical: 14,
@@ -219,9 +251,11 @@ export default function OnboardTwoFA({
                 shadowOpacity: method ? 0.3 : 0, shadowRadius: 10, elevation: method ? 4 : 0,
               }}
             >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
-                {codeSent ? 'Resend Code' : 'Send Test Code'}
-              </Text>
+              {sending
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                    {codeSent ? 'Resend Code' : 'Send Code'}
+                  </Text>}
             </TouchableOpacity>
 
             {/* Code entry */}
@@ -266,16 +300,16 @@ export default function OnboardTwoFA({
                 <TouchableOpacity
                   onPress={handleVerify}
                   activeOpacity={0.85}
-                  disabled={entered.length !== 6}
+                  disabled={entered.length !== 6 || verifying}
                   style={{
                     backgroundColor: entered.length === 6 ? '#2D6A4F' : '#CBD5E1',
                     borderRadius: 14, paddingVertical: 14,
                     alignItems: 'center', marginBottom: 20,
                   }}
                 >
-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
-                    Verify Code
-                  </Text>
+                  {verifying
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Verify Code</Text>}
                 </TouchableOpacity>
               </>
             )}

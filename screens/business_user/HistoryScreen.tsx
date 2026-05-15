@@ -39,9 +39,11 @@ function formatDate(d: Date | null): string {
 
 export default function HistoryScreen() {
   const { session } = useAuth();
-  const [donations, setDonations] = useState<DonationListing[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [search,    setSearch]    = useState('');
+  const [donations,    setDonations]    = useState<DonationListing[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState('');
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Claimed' | 'Completed'>('All');
+  const [sortOrder,    setSortOrder]    = useState<'newest' | 'oldest'>('newest');
 
   useEffect(() => {
     const uid = session?.userId;
@@ -56,10 +58,22 @@ export default function HistoryScreen() {
   const completedCount   = donations.filter(d => d.status === 'completed').length;
   const currentMonthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const filtered = donations.filter(d =>
-    (d.foodName || d.category).toLowerCase().includes(search.toLowerCase()) ||
-    (d.claimedByName ?? '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = donations
+    .filter(d => {
+      if (filterStatus === 'Active')    return d.status === 'available';
+      if (filterStatus === 'Claimed')   return d.status === 'claimed';
+      if (filterStatus === 'Completed') return d.status === 'completed';
+      return true;
+    })
+    .filter(d =>
+      (d.foodName || d.category).toLowerCase().includes(search.toLowerCase()) ||
+      (d.claimedByName ?? '').toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) =>
+      sortOrder === 'oldest'
+        ? (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)
+        : (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
+    );
 
   return (
     <View style={{ flex: 1, backgroundColor: '#E2EBE1' }}>
@@ -138,6 +152,41 @@ export default function HistoryScreen() {
           )}
         </View>
 
+        {/* ── Filter chips + sort ── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, marginBottom: 16 }}
+        >
+          {(['All', 'Active', 'Claimed', 'Completed'] as const).map(f => (
+            <TouchableOpacity key={f} onPress={() => setFilterStatus(f)} activeOpacity={0.8}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                backgroundColor: filterStatus === f ? '#2D6A4F' : '#fff',
+                borderWidth: 1, borderColor: filterStatus === f ? '#2D6A4F' : '#E2E8F0',
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: filterStatus === f ? '#fff' : '#64748B' }}>
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            onPress={() => setSortOrder(o => o === 'newest' ? 'oldest' : 'newest')}
+            activeOpacity={0.8}
+            style={{
+              paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+              backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+            }}
+          >
+            <Feather name="sliders" size={11} color="#64748B" />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B' }}>
+              {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
         {/* ── Section label ── */}
         <Text style={{
           color: '#94A3B8', fontSize: 11, fontWeight: '700',
@@ -193,6 +242,12 @@ export default function HistoryScreen() {
                         <Feather name="calendar" size={11} color="#94A3B8" />
                         <Text style={{ fontSize: 11, color: '#94A3B8' }}>{dateLabel}</Text>
                       </View>
+                      {d.pickupWindow ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                          <Feather name="clock" size={11} color="#94A3B8" />
+                          <Text style={{ fontSize: 11, color: '#94A3B8' }}>{d.pickupWindow}</Text>
+                        </View>
+                      ) : null}
                     </View>
 
                     <View style={{ alignItems: 'flex-end', gap: 8 }}>

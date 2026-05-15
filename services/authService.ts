@@ -14,7 +14,9 @@ import {
   setDoc,
   getDoc,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from '../firebase/firebaseConfig';
 
 const SESSION_KEY        = 'freshloop_session';
@@ -322,6 +324,12 @@ export async function biometricSignIn(role: UserRole): Promise<AuthResult> {
   if (!session || session.role !== role) {
     return { success: false, error: 'No account with biometrics set up. Please sign in with email and password first.' };
   }
+  if (!auth.currentUser) {
+    return {
+      success: false,
+      error: 'Please sign in with email and password once before using biometrics.',
+    };
+  }
   return { success: true, session };
 }
 
@@ -330,6 +338,68 @@ export async function checkBiometricSupport(): Promise<boolean> {
   const compatible = await LocalAuthentication.hasHardwareAsync();
   if (!compatible) return false;
   return LocalAuthentication.isEnrolledAsync();
+}
+
+// ── OTP (email verification) ────────────────────────────────────────────────────────────────
+
+/**
+ * Calls the `sendOtpEmail` Cloud Function (africa-south1).
+ * The function generates the OTP, saves it to otpCodes/{uid}, and
+ * sends the email via Gmail SMTP — no mail collection required.
+ * Requires the caller to be a signed-in Firebase user.
+ */
+export async function sendOtpCode(
+  userId: string,
+  email: string,
+  role: string = 'business',
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const functions = getFunctions(undefined, 'africa-south1');
+    const sendOtpEmail = httpsCallable<{ email: string; role: string }, { success: boolean }>(
+      functions,
+      'sendOtpEmail',
+    );
+    await sendOtpEmail({ email, role });
+    return { success: true };
+  } catch (e: any) {
+    // Surface the Cloud Function error message if available
+    const msg: string = e?.message ?? '';
+    if (msg.includes('unauthenticated')) {
+      return { success: false, error: 'Please sign in before requesting a code.' };
+    }
+    return { success: false, error: 'Could not send verification code. Please try again.' };
+  }
+}
+
+/**
+ * Verifies a user-entered OTP code against the Firestore record.
+ * Marks the code as used on success.
+ */
+export async function verifyOtpCode(
+  userId: string,
+  code: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const snap = await getDoc(doc(db, 'otpCodes', userId));
+    if (!snap.exists()) {
+      return { success: false, error: 'No verification code found. Please request a new one.' };
+    }
+    const data = snap.data();
+    if (data.used) {
+      return { success: false, error: 'This code has already been used. Please request a new one.' };
+    }
+    const expiresAt = data.expiresAt instanceof Timestamp ? data.expiresAt.toDate() : new Date(0);
+    if (Date.now() > expiresAt.getTime()) {
+      return { success: false, error: 'Code expired. Please request a new one.' };
+    }
+    if (data.code !== code.trim()) {
+      return { success: false, error: 'Incorrect code — please try again.' };
+    }
+    await setDoc(doc(db, 'otpCodes', userId), { used: true }, { merge: true });
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Verification failed. Please try again.' };
+  }
 }
 
 // ── Google Sign-In (Home users only) ─────────────────────────────────────────

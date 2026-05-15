@@ -19,6 +19,7 @@ type Pickup = {
   category: string;
   weight: string;
   pickupEnd: string;
+  pickupStartRaw?: string;
   distance: string;
   status: PickupStatus;
   urgency: 'green' | 'yellow' | 'red';
@@ -81,6 +82,7 @@ function urgencyFromHours(h: number): 'green' | 'yellow' | 'red' {
 function toUIPickup(d: DonationListing): Pickup {
   const hours = hoursUntil(d.expiryDate);
   const parts = d.pickupWindow.split(/\s*[–\-]\s*/);
+  const pickupStartRaw = parts[0]?.trim() ?? '';
   const pickupEnd = parts[1]?.trim() ?? parts[0]?.trim() ?? '—';
   return {
     id: d.id,
@@ -89,6 +91,7 @@ function toUIPickup(d: DonationListing): Pickup {
     category: d.category,
     weight: d.quantity,
     pickupEnd,
+    pickupStartRaw,
     distance: '—',
     status: d.status === 'completed' ? 'Completed' : 'En Route',
     urgency: urgencyFromHours(hours),
@@ -170,6 +173,17 @@ export default function ActivePickupsScreen() {
 
   const updateStatus = async (id: string, newStatus: PickupStatus) => {
     if (newStatus === 'Completed') {
+      const pickup = pickups.find(p => p.id === id);
+      if (pickup?.pickupStartRaw) {
+        const start = new Date(pickup.pickupStartRaw.replace(' ', 'T'));
+        if (!isNaN(start.getTime()) && Date.now() < start.getTime()) {
+          Alert.alert(
+            'Too Early',
+            'This pickup cannot be completed before the pickup window starts.',
+          );
+          return;
+        }
+      }
       try {
         await completeDonation(id);
         // Firestore subscription will update the card automatically

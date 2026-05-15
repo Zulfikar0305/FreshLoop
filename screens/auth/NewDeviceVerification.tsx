@@ -2,16 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Image, StatusBar,
-  TextInput, Alert,
+  TextInput, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { auth } from '../../firebase/firebaseConfig';
+import { sendOtpCode, verifyOtpCode } from '../../services/authService';
 
 const RESEND_SECONDS = 30;
-
-function generateCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
 
 export default function NewDeviceVerification({
   email,
@@ -22,7 +20,8 @@ export default function NewDeviceVerification({
   onContinue: () => void;
   onBack: () => void;
 }) {
-  const [genCode,     setGenCode]     = useState('');
+  const [sending,     setSending]     = useState(false);
+  const [verifying,   setVerifying]   = useState(false);
   const [entered,     setEntered]     = useState('');
   const [verified,    setVerified]    = useState(false);
   const [error,       setError]       = useState('');
@@ -44,25 +43,29 @@ export default function NewDeviceVerification({
     return () => clearTimeout(t);
   }, [resendTimer]);
 
-  const sendCode = () => {
-    const code = generateCode();
-    setGenCode(code);
+  const sendCode = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setError('Session expired. Please sign in again.'); return; }
+    setSending(true);
     setEntered('');
     setError('');
     setResendTimer(RESEND_SECONDS);
-    Alert.alert(
-      '🔒 Demo Mode — Verification Code',
-      `Your sign-in code is:\n\n${code}\n\n(In production this would be sent to ${maskedEmail}.)`,
-      [{ text: 'Got it', style: 'default' }],
-    );
+    const result = await sendOtpCode(uid, email);
+    setSending(false);
+    if (!result.success) setError(result.error ?? 'Could not send code.');
   };
 
-  const handleVerify = () => {
-    if (entered.trim() === genCode) {
+  const handleVerify = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setError('Session expired. Please sign in again.'); return; }
+    setVerifying(true);
+    const result = await verifyOtpCode(uid, entered);
+    setVerifying(false);
+    if (result.success) {
       setVerified(true);
       setError('');
     } else {
-      setError('Incorrect code — please try again.');
+      setError(result.error ?? 'Incorrect code — please try again.');
     }
   };
 
@@ -193,16 +196,16 @@ export default function NewDeviceVerification({
             <TouchableOpacity
               onPress={handleVerify}
               activeOpacity={0.85}
-              disabled={entered.length !== 6}
+              disabled={entered.length !== 6 || verifying}
               style={{
                 backgroundColor: entered.length === 6 ? '#2D6A4F' : '#CBD5E1',
                 borderRadius: 14, paddingVertical: 14,
                 alignItems: 'center', marginBottom: 16,
               }}
             >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
-                Verify Code
-              </Text>
+              {verifying
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Verify Code</Text>}
             </TouchableOpacity>
 
             {/* Resend timer */}
@@ -212,6 +215,8 @@ export default function NewDeviceVerification({
                   Resend code in{' '}
                   <Text style={{ fontWeight: '700', color: '#64748B' }}>{resendTimer}s</Text>
                 </Text>
+              ) : sending ? (
+                <ActivityIndicator size="small" color="#2D6A4F" />
               ) : (
                 <TouchableOpacity onPress={sendCode} activeOpacity={0.7}>
                   <Text style={{ color: '#2D6A4F', fontWeight: '700', fontSize: 13 }}>

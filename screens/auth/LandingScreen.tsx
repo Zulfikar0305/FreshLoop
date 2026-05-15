@@ -1,5 +1,5 @@
 // screens/auth/LandingScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { collection, getCountFromServer, query, where } from 'firebase/firestore';
+import { db } from '../../firebase/firebaseConfig';
 
 const USER_PATHS: {
   id: string;
@@ -55,11 +57,7 @@ const USER_PATHS: {
   },
 ];
 
-const STATS = [
-  { value: '2.4t',  label: 'Food Saved'  },
-  { value: '1,200', label: 'Active Users' },
-  { value: '48',    label: 'NPO Partners' },
-];
+
 
 export default function LandingScreen({
   onContinue,
@@ -67,7 +65,34 @@ export default function LandingScreen({
   onContinue: (role: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string>('home');
-  const selectedPath = USER_PATHS.find(p => p.id === selectedId)!;
+  const selectedPath = USER_PATHS.find(p => p.id === selectedId)!
+
+  // ── Live Firestore stats ─────────────────────────────────────────────────
+  const [stats, setStats] = useState([
+    { value: '—', label: 'Food Saved'  },
+    { value: '—', label: 'Active Users' },
+    { value: '—', label: 'NPO Partners' },
+  ]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [usersSnap, npoSnap, completedSnap] = await Promise.all([
+          getCountFromServer(collection(db, 'users')),
+          getCountFromServer(query(collection(db, 'users'), where('role', 'in', ['npo', 'coordinator']))),
+          getCountFromServer(query(collection(db, 'donations'), where('status', '==', 'completed'))),
+        ]);
+        const kgEst = completedSnap.data().count * 5;
+        setStats([
+          { value: kgEst > 0 ? `~${kgEst}kg` : '—', label: 'Food Saved' },
+          { value: usersSnap.data().count > 0 ? usersSnap.data().count.toLocaleString() : '—', label: 'Active Users' },
+          { value: npoSnap.data().count > 0 ? String(npoSnap.data().count) : '—', label: 'NPO Partners' },
+        ]);
+      } catch {
+        // leave '—' fallback values
+      }
+    })();
+  }, []);;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#1C3A2E' }}>
@@ -144,7 +169,7 @@ export default function LandingScreen({
               paddingHorizontal: 20, paddingVertical: 14,
               width: '100%', justifyContent: 'space-between',
             }}>
-              {STATS.map((s, i) => (
+              {stats.map((s, i) => (
                 <React.Fragment key={s.label}>
                   <View style={{ alignItems: 'center' }}>
                     <Text style={{ color: '#4ADE80', fontSize: 18, fontWeight: '800' }}>
@@ -154,7 +179,7 @@ export default function LandingScreen({
                       {s.label}
                     </Text>
                   </View>
-                  {i < STATS.length - 1 && (
+                  {i < stats.length - 1 && (
                     <View style={{
                       width: 1,
                       backgroundColor: 'rgba(255,255,255,0.08)',

@@ -83,5 +83,10 @@ service cloud.firestore {
     match /adminSettings/{adminId} {
       allow read, write: if isAdmin();
     }
+
+    // OTP codes — owner-read/write only; no public access
+    match /otpCodes/{userId} {
+      allow read, write: if isOwner(userId);
+    }
   }
 }

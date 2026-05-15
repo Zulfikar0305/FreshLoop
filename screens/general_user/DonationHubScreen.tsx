@@ -10,6 +10,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
 import MapPreview from '../../components/MapPreview';
+import DatePickerField from '../../components/DatePickerField';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { getUserInventory, updateItemQuantity, updateItemStatus, type InventoryItem } from '../../services/inventoryService';
@@ -102,6 +103,8 @@ export default function DonationHubScreen() {
   const [pickupAddress, setPickupAddress] = useState('');
   const [pickupStart,   setPickupStart]   = useState('');
   const [pickupEnd,     setPickupEnd]     = useState('');
+  const [pickupDate,    setPickupDate]    = useState('');
+  const [mapCoord,      setMapCoord]      = useState<{ latitude: number; longitude: number } | null>(null);
   const [notes,         setNotes]         = useState('');
   const [submitting,    setSubmitting]    = useState(false);
   const [successId,     setSuccessId]     = useState<string | null>(null);
@@ -188,7 +191,9 @@ export default function DonationHubScreen() {
     }
     setSubmitting(true);
     try {
-      const pickupWindow = [pickupStart, pickupEnd].filter(Boolean).join(' – ');
+      const pickupWindow = pickupDate
+        ? `${pickupDate} ${pickupStart} – ${pickupDate} ${pickupEnd}`.trim()
+        : [pickupStart, pickupEnd].filter(Boolean).join(' – ');
       const id = await createDonationListing({
         donorId: session.userId,
         donorRole: 'home',
@@ -204,6 +209,8 @@ export default function DonationHubScreen() {
         pickupAddress: pickupAddress.trim(),
         pickupWindow,
         city: 'Durban',
+        latitude: mapCoord?.latitude,
+        longitude: mapCoord?.longitude,
         notes: notes.trim(),
         visibleUntil: donationVisibleUntil.trim(),
       });
@@ -403,6 +410,8 @@ export default function DonationHubScreen() {
                     setPickupEnd('');
                     setNotes('');
                     setDonationVisibleUntil('');
+                    setPickupDate('');
+                    setMapCoord(null);
                   }}
                   activeOpacity={0.85}
                   style={[s.submitBtn, { width: '100%', marginTop: 0 }]}
@@ -489,16 +498,43 @@ export default function DonationHubScreen() {
                       onChangeText={setPickupAddress}
                     />
 
-                    <Text style={s.fieldLabel}>PICKUP WINDOW</Text>
+                    <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 6 }}>
+                      <MapPreview
+                        latitude={mapCoord?.latitude}
+                        longitude={mapCoord?.longitude}
+                        profileCity={session?.city || 'Durban'}
+                        height={180}
+                        markerTitle="Pickup location"
+                        markerVariant="pickup"
+                        draggable
+                        useRegion
+                        usePhoneLocation={false}
+                        onMarkerDragEnd={coord => setMapCoord(coord)}
+                        onMapPress={coord => setMapCoord(coord)}
+                      />
+                    </View>
+                    <Text style={{ fontSize: 10, color: '#94A3B8', marginBottom: 14 }}>
+                      Tap map or drag pin to set exact pickup location
+                    </Text>
+
+                    <Text style={s.fieldLabel}>PICKUP DATE</Text>
+                    <DatePickerField
+                      value={pickupDate}
+                      onChange={setPickupDate}
+                      placeholder="Select pickup date"
+                      containerStyle={{ marginBottom: 14 }}
+                    />
+
+                    <Text style={s.fieldLabel}>PICKUP WINDOW (time only)</Text>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.subLabel}>From</Text>
-                        <TextInput style={s.input} placeholder="2:00 PM"
+                        <Text style={s.subLabel}>From (HH:MM)</Text>
+                        <TextInput style={s.input} placeholder="16:00"
                           placeholderTextColor="#CBD5E1" value={pickupStart} onChangeText={setPickupStart} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.subLabel}>Until</Text>
-                        <TextInput style={s.input} placeholder="6:00 PM"
+                        <Text style={s.subLabel}>Until (HH:MM)</Text>
+                        <TextInput style={s.input} placeholder="18:00"
                           placeholderTextColor="#CBD5E1" value={pickupEnd} onChangeText={setPickupEnd} />
                       </View>
                     </View>
