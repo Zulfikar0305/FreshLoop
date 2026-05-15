@@ -13,7 +13,8 @@ import {
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
 import DatePickerField from '../../components/DatePickerField';
-import MapPreview from '../../components/MapPreview';
+import MapPreview, { reverseGeocode } from '../../components/MapPreview';
+import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import { createDonationListing } from '../../services/donationService';
 import { createNotification } from '../../services/inAppNotificationService';
@@ -110,6 +111,7 @@ function DonationForm({ data, onChange, profileCity, onCoordChange, initialCoord
 }) {
   const [timeError,    setTimeError]    = React.useState('');
   const [mapCoord,     setMapCoordLocal] = React.useState<{ latitude: number; longitude: number } | null>(null);
+  const [locLoading,   setLocLoading]   = React.useState(false);
   const geocodeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSetInitial = React.useRef(false);
 
@@ -140,6 +142,32 @@ function DonationForm({ data, onChange, profileCity, onCoordChange, initialCoord
     }, 500);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleCurrentLocation = React.useCallback(async () => {
+    setLocLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission denied', 'Enable location permission to use this feature.');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coord = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      setMapCoordLocal(coord);
+      const label = await reverseGeocode(coord.latitude, coord.longitude);
+      onChange('pickupAddress', label);
+    } catch {
+      Alert.alert('Location error', 'Could not get your current location.');
+    } finally {
+      setLocLoading(false);
+    }
+  }, [onChange]);
+
+  const handleMapCoordSelect = React.useCallback(async (coord: { latitude: number; longitude: number }) => {
+    setMapCoordLocal(coord);
+    const label = await reverseGeocode(coord.latitude, coord.longitude);
+    onChange('pickupAddress', label);
+  }, [onChange]);
 
   function formatTimeInput(value: string): string {
     const digits = value.replace(/\D/g, '').slice(0, 4);
@@ -325,6 +353,26 @@ function DonationForm({ data, onChange, profileCity, onCoordChange, initialCoord
             geocodeAddress(v);
           }}
         />
+        <TouchableOpacity
+          onPress={handleCurrentLocation}
+          disabled={locLoading}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+            gap: 6, paddingVertical: 9, paddingHorizontal: 14,
+            backgroundColor: 'rgba(45,106,79,0.08)', borderRadius: 10,
+            borderWidth: 1, borderColor: 'rgba(45,106,79,0.2)',
+            marginBottom: 12, opacity: locLoading ? 0.6 : 1,
+          }}
+        >
+          {locLoading
+            ? <ActivityIndicator size="small" color="#2D6A4F" />
+            : <Feather name="navigation" size={14} color="#2D6A4F" />
+          }
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#2D6A4F' }}>
+            Use current location
+          </Text>
+        </TouchableOpacity>
         {/* Map preview — live geocoding + tap-to-pin */}
         <MapPreview
           profileCity={profileCity || 'Durban'}
@@ -337,11 +385,11 @@ function DonationForm({ data, onChange, profileCity, onCoordChange, initialCoord
           markerDescription={data.pickupAddress || undefined}
           markerVariant="pickup"
           draggable
-          onMapPress={(c) => setMapCoordLocal(c)}
-          onMarkerDragEnd={(c) => setMapCoordLocal(c)}
+          onMapPress={handleMapCoordSelect}
+          onMarkerDragEnd={handleMapCoordSelect}
         />
         <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 6, marginBottom: 2, textAlign: 'center' }}>
-          Tap the map to fine-tune the pin position
+          Type address · use location · or tap map to pin
         </Text>
       </View>
     </>

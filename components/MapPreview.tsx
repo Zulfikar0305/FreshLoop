@@ -52,6 +52,27 @@ export function getFallbackCoord(
   return DEFAULT_COORD;
 }
 
+/**
+ * Reverse geocodes a coordinate to a human-readable address string.
+ * Falls back to "Selected map location" if the geocoder is unavailable.
+ * Does not require location permission — only coordinates are needed.
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const results = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    if (results.length > 0) {
+      const r = results[0];
+      const streetPart = r.street
+        ? (r.streetNumber ? `${r.streetNumber} ${r.street}` : r.street)
+        : '';
+      const cityPart = r.city || r.district || r.subregion || '';
+      const label = [streetPart, cityPart].filter(Boolean).join(', ');
+      if (label) return label;
+    }
+  } catch { /* non-fatal */ }
+  return 'Selected map location';
+}
+
 // ── MapPreview component ─────────────────────────────────────────────────────
 
 export type MapPreviewProps = {

@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import CustomHeader from '../../components/CustomHeader';
-import MapPreview from '../../components/MapPreview';
+import MapPreview, { reverseGeocode, cityToCoord } from '../../components/MapPreview';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 import DatePickerField from '../../components/DatePickerField';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +38,17 @@ const PIN_LABELS: Record<DonationPin, string> = {
   green: '6h+ remaining', yellow: '2–6h remaining', red: 'Under 2h',
 };
 const FILTER_CHIPS: FilterChip[] = ['All', 'Vegetables', 'Cooked Meals', 'Dairy', 'Bakery'];
+
+// Deterministic offsets so markers don't stack when lat/lng is missing
+const FIND_MAP_OFFSETS = [
+  { lat:  0.022, lng:  0.032 },
+  { lat: -0.018, lng:  0.027 },
+  { lat:  0.033, lng: -0.021 },
+  { lat: -0.026, lng: -0.016 },
+  { lat:  0.012, lng:  0.042 },
+  { lat: -0.037, lng:  0.011 },
+  { lat:  0.041, lng:  0.022 },
+];
 
 // ── Report footer button ────────────────────────────────────────────────────
 const ReportButton = ({ onPress }: { onPress: () => void }) => (
@@ -115,6 +128,9 @@ export default function DonationHubScreen() {
 
   // Give tab — additional form fields
   const [donationVisibleUntil, setDonationVisibleUntil] = useState('');
+  const [locLoading,           setLocLoading]            = useState(false);
+  const [findMapCenter,        setFindMapCenter]         = useState<{ latitude: number; longitude: number }>(() => cityToCoord(session?.city ?? 'Durban'));
+  const geocodeTimerHub = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Real donations for list view; fake LISTINGS kept for decorative map pins
   const liveAsListings = liveDonations.map(mapDonationToListing);
@@ -166,8 +182,60 @@ export default function DonationHubScreen() {
       (items) => { setLiveDonations(items); setDonationsLoading(false); },
       (_err)   => { setDonationsLoading(false); },
     );
+    // Center the find map on the user's GPS position if permission is granted
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setFindMapCenter({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        }
+      } catch { /* keep city fallback */ }
+    })();
     return unsub;
   }, [activeTab]);
+
+  const geocodePickupAddress = React.useCallback((address: string) => {
+    if (geocodeTimerHub.current) clearTimeout(geocodeTimerHub.current);
+    if (!address.trim()) return;
+    geocodeTimerHub.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'FreshLoop/1.0' } });
+        const json = (await res.json()) as Array<{ lat: string; lon: string }>;
+        if (json[0]) {
+          setMapCoord({ latitude: parseFloat(json[0].lat), longitude: parseFloat(json[0].lon) });
+        }
+      } catch { /* geocoding failure is non-fatal */ }
+    }, 500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleGiveCurrentLocation = async () => {
+    setLocLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission denied', 'Enable location permission to use this feature.');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coord = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      setMapCoord(coord);
+      const label = await reverseGeocode(coord.latitude, coord.longitude);
+      setPickupAddress(label);
+    } catch {
+      Alert.alert('Location error', 'Could not get your current location.');
+    } finally {
+      setLocLoading(false);
+    }
+  };
+
+  const handleGiveMapCoord = async (coord: { latitude: number; longitude: number }) => {
+    setMapCoord(coord);
+    const label = await reverseGeocode(coord.latitude, coord.longitude);
+    setPickupAddress(label);
+  };
 
   const handleDonate = async () => {
     if (!session) return;
@@ -312,13 +380,43 @@ export default function DonationHubScreen() {
             {/* Map view */}
             {!listView && (
               <View style={[s.mapCard, { padding: 0, overflow: 'hidden' }]}>
-                <MapPreview
-                  profileCity={session?.city || 'Durban'}
-                  usePhoneLocation
-                  height={220}
-                  markerTitle="Donations near you"
-                  markerVariant="pickup"
-                />
+                <MapView
+                  style={{ height: 220 }}
+                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
+                  initialRegion={{
+                    latitude:      findMapCenter.latitude,
+                    longitude:     findMapCenter.longitude,
+                    latitudeDelta:  0.18,
+                    longitudeDelta: 0.18,
+                  }}
+                  scrollEnabled
+                  zoomEnabled
+                  zoomControlEnabled
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  showsUserLocation
+                >
+                  {filteredLive.map((l, i) => {
+                    const live = liveDonations.find(d => d.id === l.id);
+                    const off  = FIND_MAP_OFFSETS[i % FIND_MAP_OFFSETS.length];
+                    const coord = live?.latitude != null && live?.longitude != null
+                      ? { latitude: live.latitude, longitude: live.longitude }
+                      : {
+                          latitude:  findMapCenter.latitude  + (off?.lat ?? 0),
+                          longitude: findMapCenter.longitude + (off?.lng ?? 0),
+                        };
+                    return (
+                      <Marker
+                        key={l.id}
+                        coordinate={coord}
+                        pinColor={requested.includes(l.id) ? '#94A3B8' : PIN_COLORS[l.pin]}
+                        title={l.title}
+                        description={l.store}
+                        onPress={() => setSelectedListing(l)}
+                      />
+                    );
+                  })}
+                </MapView>
               </View>
             )}
 
@@ -495,8 +593,28 @@ export default function DonationHubScreen() {
                       placeholder="e.g. 45 Berea Road, Durban"
                       placeholderTextColor="#CBD5E1"
                       value={pickupAddress}
-                      onChangeText={setPickupAddress}
+                      onChangeText={(v) => { setPickupAddress(v); geocodePickupAddress(v); }}
                     />
+                    <TouchableOpacity
+                      onPress={handleGiveCurrentLocation}
+                      disabled={locLoading}
+                      activeOpacity={0.8}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                        gap: 6, paddingVertical: 9,
+                        backgroundColor: 'rgba(45,106,79,0.08)', borderRadius: 10,
+                        borderWidth: 1, borderColor: 'rgba(45,106,79,0.2)',
+                        marginBottom: 10, opacity: locLoading ? 0.6 : 1,
+                      }}
+                    >
+                      {locLoading
+                        ? <ActivityIndicator size="small" color="#2D6A4F" />
+                        : <Feather name="navigation" size={14} color="#2D6A4F" />
+                      }
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#2D6A4F' }}>
+                        Use current location
+                      </Text>
+                    </TouchableOpacity>
 
                     <View style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 6 }}>
                       <MapPreview
@@ -509,12 +627,12 @@ export default function DonationHubScreen() {
                         draggable
                         useRegion
                         usePhoneLocation={false}
-                        onMarkerDragEnd={coord => setMapCoord(coord)}
-                        onMapPress={coord => setMapCoord(coord)}
+                        onMarkerDragEnd={handleGiveMapCoord}
+                        onMapPress={handleGiveMapCoord}
                       />
                     </View>
                     <Text style={{ fontSize: 10, color: '#94A3B8', marginBottom: 14 }}>
-                      Tap map or drag pin to set exact pickup location
+                      Type address · use location · or tap map to pin
                     </Text>
 
                     <Text style={s.fieldLabel}>PICKUP DATE</Text>
