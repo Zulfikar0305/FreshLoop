@@ -10,7 +10,7 @@ import {
   type DonationListing,
 } from '../../services/donationService';
 
-type PickupStatus = 'En Route' | 'Arrived' | 'Completed';
+type PickupStatus = 'Claimed' | 'En Route' | 'Arrived' | 'Completed';
 
 type Pickup = {
   id: string;
@@ -60,12 +60,16 @@ const PICKUPS: Pickup[] = [
 ];
 
 const STATUS_CONFIG: Record<PickupStatus, { color: string; bg: string; icon: React.ComponentProps<typeof Feather>['name']; text: string }> = {
-  "En Route": { color: "#F59E0B", bg: "#FEF3C7", icon: "truck", text: "#92400E" },
-  "Arrived":  { color: "#0284C7", bg: "#F0F9FF", icon: "map-pin", text: "#0369A1" },
+  "Claimed":  { color: "#8B5CF6", bg: "#F5F3FF", icon: "bookmark",     text: "#5B21B6" },
+  "En Route": { color: "#F59E0B", bg: "#FEF3C7", icon: "truck",        text: "#92400E" },
+  "Arrived":  { color: "#0284C7", bg: "#F0F9FF", icon: "map-pin",      text: "#0369A1" },
   "Completed":{ color: "#10B981", bg: "#F0FDF4", icon: "check-circle", text: "#065F46" },
 };
 
 const URGENCY_COLORS = { green: "#10B981", yellow: "#FBBF24", red: "#EF4444" };
+
+type ActivePickupFilter = 'All' | PickupStatus;
+const FILTER_OPTIONS: ActivePickupFilter[] = ['All', 'Claimed', 'En Route', 'Arrived', 'Completed'];
 
 // ── Firestore → UI mapping ───────────────────────────────────────────────────────────────
 function hoursUntil(date: Date | null): number {
@@ -93,7 +97,7 @@ function toUIPickup(d: DonationListing): Pickup {
     pickupEnd,
     pickupStartRaw,
     distance: '—',
-    status: d.status === 'completed' ? 'Completed' : 'En Route',
+    status: d.status === 'completed' ? 'Completed' : 'Claimed',
     urgency: urgencyFromHours(hours),
     driver: '—',
     estimatedArrival: '—',
@@ -157,6 +161,7 @@ export default function ActivePickupsScreen() {
   const [loading,     setLoading]     = useState(true);
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [localStatus, setLocalStatus] = useState<Record<string, PickupStatus>>({});
+  const [filter,      setFilter]      = useState<ActivePickupFilter>('All');
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -196,8 +201,9 @@ export default function ActivePickupsScreen() {
     }
   };
 
-  const activeCount    = pickups.filter((p) => getStatus(p) !== 'Completed').length;
-  const completedCount = pickups.filter((p) => getStatus(p) === 'Completed').length;
+  const activeCount      = pickups.filter((p) => getStatus(p) !== 'Completed').length;
+  const completedCount   = pickups.filter((p) => getStatus(p) === 'Completed').length;
+  const displayedPickups = filter === 'All' ? pickups : pickups.filter(p => getStatus(p) === filter);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#E2EBE1' }}>
@@ -252,6 +258,49 @@ export default function ActivePickupsScreen() {
           Today's Itinerary
         </Text>
 
+        {/* Filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingBottom: 14 }}
+        >
+          {FILTER_OPTIONS.map(opt => {
+            const isActive = filter === opt;
+            const count = opt === 'All'
+              ? pickups.length
+              : pickups.filter(p => getStatus(p) === opt).length;
+            return (
+              <TouchableOpacity
+                key={opt}
+                onPress={() => setFilter(opt)}
+                activeOpacity={0.8}
+                style={{
+                  paddingHorizontal: 14, paddingVertical: 8,
+                  borderRadius: 20, borderWidth: 1.5,
+                  borderColor: isActive ? '#2D6A4F' : '#E2E8F0',
+                  backgroundColor: isActive ? 'rgba(45,106,79,0.1)' : '#F8FAFC',
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isActive ? '#2D6A4F' : '#64748B' }}>
+                  {opt}
+                </Text>
+                {count > 0 && (
+                  <View style={{
+                    backgroundColor: isActive ? '#2D6A4F' : '#E2E8F0',
+                    borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2,
+                    minWidth: 20, alignItems: 'center',
+                  }}>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: isActive ? '#fff' : '#64748B' }}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         {loading ? (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
             <ActivityIndicator size="large" color="#2D6A4F" />
@@ -264,8 +313,16 @@ export default function ActivePickupsScreen() {
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#475569', marginBottom: 4 }}>No active pickups</Text>
             <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 }}>Claim donations from the Operations Map to see them here.</Text>
           </View>
+        ) : displayedPickups.length === 0 ? (
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40, backgroundColor: '#fff', borderRadius: 20 }}>
+            <Feather name="filter" size={28} color="#CBD5E1" style={{ marginBottom: 12 }} />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#475569', marginBottom: 4 }}>No {filter} pickups</Text>
+            <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 }}>
+              No pickups match this filter. Try “All” to see everything.
+            </Text>
+          </View>
         ) : (
-          pickups.map((pickup, index) => {
+          displayedPickups.map((pickup, index) => {
             const displayStatus = getStatus(pickup);
             const cfg = STATUS_CONFIG[displayStatus];
             const isExpanded = expandedId === pickup.id;
