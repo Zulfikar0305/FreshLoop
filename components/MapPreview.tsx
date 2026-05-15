@@ -185,6 +185,8 @@ export default function MapPreview({
     longitudeDelta: 0.12,
   };
 
+  // Enable zoom/pan when the map is being used for location selection.
+  const isInteractive = !!(onMapPress || draggable);
   const pinColor = markerVariant === 'user' ? '#60A5FA' : '#2D6A4F';
 
   return (
@@ -194,8 +196,9 @@ export default function MapPreview({
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         region={useRegion ? region : undefined}
         initialRegion={useRegion ? undefined : region}
-        scrollEnabled={false}
-        zoomEnabled={false}
+        scrollEnabled={isInteractive}
+        zoomEnabled={isInteractive}
+        zoomControlEnabled={isInteractive}
         rotateEnabled={false}
         pitchEnabled={false}
         onPress={onMapPress ? (e) => onMapPress(e.nativeEvent.coordinate) : undefined}

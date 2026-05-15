@@ -1,5 +1,5 @@
 // screens/auth/LandingScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { collection, getCountFromServer, query, where } from 'firebase/firestore';
-import { db } from '../../firebase/firebaseConfig';
 
 const USER_PATHS: {
   id: string;
@@ -67,36 +65,12 @@ export default function LandingScreen({
   const [selectedId, setSelectedId] = useState<string>('home');
   const selectedPath = USER_PATHS.find(p => p.id === selectedId)!
 
-  // ── Live Firestore stats ─────────────────────────────────────────────────
-  const [stats, setStats] = useState([
-    { value: '—', label: 'Food Saved'  },
-    { value: '—', label: 'Active Users' },
-    { value: '—', label: 'NPO Partners' },
-  ]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        // Run sequentially — if 'users' is permission-denied, the rest are
-        // skipped immediately, keeping Firestore warnings to a minimum.
-        const usersSnap = await getCountFromServer(collection(db, 'users'));
-        const npoSnap = await getCountFromServer(
-          query(collection(db, 'users'), where('role', 'in', ['npo', 'coordinator'])),
-        );
-        const completedSnap = await getCountFromServer(
-          query(collection(db, 'donations'), where('status', '==', 'completed')),
-        );
-        const kgEst = completedSnap.data().count * 5;
-        setStats([
-          { value: kgEst > 0 ? `~${kgEst}kg` : '—', label: 'Food Saved' },
-          { value: usersSnap.data().count > 0 ? usersSnap.data().count.toLocaleString() : '—', label: 'Active Users' },
-          { value: npoSnap.data().count > 0 ? String(npoSnap.data().count) : '—', label: 'NPO Partners' },
-        ]);
-      } catch {
-        // Firestore read blocked (permission-denied) — keep '—' fallback values
-      }
-    })();
-  }, []);;
+  // ── Demo stats ────────────────────────────────────────────────────────────
+  const stats = [
+    { value: '2.4t',  label: 'Food Saved'  },
+    { value: '120',   label: 'Active Users' },
+    { value: '12',    label: 'NPO Partners' },
+  ];;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#1C3A2E' }}>
